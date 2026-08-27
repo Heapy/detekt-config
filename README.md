@@ -52,8 +52,12 @@ Extra arguments go to `detekt-cli` verbatim, e.g. `./detekt.sh --input src`.
 ## Kotlin Toolchain plugin
 
 [`plugins/heapy-detekt`](plugins/heapy-detekt) is a plugin for the
-[JetBrains Kotlin Toolchain](https://github.com/JetBrains/kotlin-toolchain) (0.11.x).
+[JetBrains Kotlin Toolchain](https://github.com/JetBrains/kotlin-toolchain) **0.12.x**.
 It registers a `detekt` check that runs detekt in-process with the shared config.
+
+The `kotlin` / `kotlin.bat` wrapper scripts in this repository pin toolchain 0.12.0
+(the wrapper carries a checksum of the distribution, so upgrade it with
+`./kotlin update`, never by editing the version by hand).
 
 Usage in a toolchain project:
 
@@ -81,7 +85,8 @@ Settings:
 - `configTag` — tag of this repository to download `detekt.yml` from
   (default: the tag pinned in `HeapyDetektSettings.kt`).
 - `configFile` — local config path; when set, `configTag` is ignored.
-  The [`example`](example) module uses this with the repo-root `detekt.yml`.
+  The [`example`](example) module uses this with `//detekt.yml`. The `//` prefix is a
+  project-root-relative path, added in toolchain 0.12.0.
 
 The plugin analyzes main JVM sources (`module.kotlinJavaSources`); test sources are
 not covered yet. Like `detekt.sh`, it runs detekt without a compiler classpath, so
