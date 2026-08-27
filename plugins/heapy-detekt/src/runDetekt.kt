@@ -26,10 +26,16 @@ fun runDetekt(
         error("Detekt config $config not found. Run install.sh to get it.")
     }
 
-    val args = arrayOf(
-        "--config", config.absolutePathString(),
-        "--input", inputDirs.joinToString(",") { it.absolutePathString() },
-    )
+    // One --input per directory: detekt does not split a joined path list here.
+    val args = buildList {
+        add("--config")
+        add(config.absolutePathString())
+        inputDirs.forEach {
+            add("--input")
+            add(it.absolutePathString())
+        }
+    }.toTypedArray()
+
     val result = CliRunner().run(args, System.out, System.err)
     result.error?.let { throw it }
 }

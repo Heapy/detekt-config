@@ -71,8 +71,25 @@ The plugin targets toolchain **0.12.x**. The `kotlin` / `kotlin.bat` wrappers in
 repository pin 0.12.0. The wrapper carries a checksum of the distribution, so upgrade
 it with `./kotlin update` — never by editing the version by hand.
 
-The plugin analyzes main JVM sources (`module.kotlinJavaSources`). Test sources are
-not covered yet.
+### What the plugin sees
+
+The plugin reads `module.kotlinJavaSources`, which covers **main common and JVM
+sources**. Not covered:
+
+- test sources;
+- native, JS and Wasm fragments of a multiplatform module (`src@macosArm64`,
+  `src@js`, …). They are skipped silently — the check passes without reading them.
+
+This is a toolchain limitation, not a choice: 0.12.0 exposes no reference to those
+fragments, and the docs state that most built-in configurables requesting files from
+the build are JVM-only.
+
+A multiplatform repository that needs every fragment checked should run `./detekt.sh`
+over the module directory instead, which reads the files directly:
+
+```sh
+./detekt.sh --input lib
+```
 
 ## Other repositories
 
