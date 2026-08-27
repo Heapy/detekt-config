@@ -5,6 +5,8 @@ tasks:
       compileClasspath: ${module.compileClasspath}
       detektClasspath:
         - dev.detekt:detekt-cli:2.0.0-alpha.6
+        # Formatting rules. detekt finds them on the classpath, no --plugins needed.
+        - dev.detekt:detekt-rules-ktlint-wrapper:2.0.0-alpha.6
       moduleRootDir: ${module.rootDir}
       jvmTarget: ${module.settings.jvm.release}
       configFile: ${pluginSettings.configFile}

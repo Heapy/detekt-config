@@ -1,5 +1,3 @@
 package io.heapy.example
 
-fun greet(name: String): String {
-    return "Hello, $name"
-}
+fun greet(name: String): String = "Hello, $name"

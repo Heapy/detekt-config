@@ -4,8 +4,8 @@ Shared [detekt](https://detekt.dev) configuration for all Heapy repositories.
 
 - Target detekt version: **2.0.0-alpha.6**
 - [`detekt.yml`](detekt.yml) — the config. Self-contained, based on the generated
-  default config of the target detekt version. Every deviation from the default is
-  marked with a `# HEAPY:` comment.
+  default config of the target detekt version, plus the `ktlint` formatting rules.
+  Every deviation from the default is marked with a `# HEAPY:` comment.
 - [`plugins/heapy-detekt`](plugins/heapy-detekt) — Kotlin Toolchain plugin. Registers
   a `detekt` check.
 - [`detekt.sh`](detekt.sh) — standalone runner for repositories without the toolchain.
@@ -143,6 +143,33 @@ classpath. It forwards arguments verbatim, so full analysis is available by hand
 ./detekt.sh --input src --analysis-mode full --classpath "$(cat classpath.txt)"
 ```
 
-> The detekt version is pinned in two places: `DETEKT_VERSION` in `detekt.sh` and the
-> `dev.detekt:detekt-cli` coordinate in `plugins/heapy-detekt/plugin.yaml`. Keep them
-> in sync.
+> The detekt version is pinned in two files: `DETEKT_VERSION` in `detekt.sh`, and the
+> `dev.detekt:*` coordinates in `plugins/heapy-detekt/plugin.yaml`. Keep them in sync.
+
+## Formatting rules
+
+`detekt.yml` configures the `ktlint` rule set (called `formatting` in detekt 1.x),
+which comes from `dev.detekt:detekt-rules-ktlint-wrapper`. Both runners load it: the
+plugin resolves it onto detekt's classpath, `detekt.sh` downloads the jar and passes
+`--plugins`.
+
+The jar is not optional. Config validation rejects the whole `ktlint` section as an
+unknown property when it is missing, and the run fails before analyzing anything.
+
+Two rules are off, marked `# HEAPY:` in the config:
+
+- `FunctionSignature`
+- `ClassSignature`
+
+Both force a particular way of wrapping signatures across lines. On a real
+hand-written module they produced 86 of 99 findings — the rest of the set produced 13.
+
+Expect a large number of findings on generated code (one generated-heavy module
+produced over 13000). Exclude such directories rather than fixing them:
+
+```sh
+./detekt.sh --input src --excludes "**/generated/**"
+```
+
+Most of these rules can fix themselves — detekt supports `--auto-correct`. Neither
+runner passes it: both are gates, and a check that rewrites files is a surprise.
