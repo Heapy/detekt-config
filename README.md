@@ -3,96 +3,92 @@
 Shared [detekt](https://detekt.dev) configuration for all Heapy repositories.
 
 - Target detekt version: **2.0.0-alpha.6**
-- Config: [`detekt.yml`](detekt.yml) — self-contained, based on the generated default
-  config of the target detekt version. Every deviation from the default is marked
-  with a `# HEAPY:` comment.
-- Runner: [`detekt.sh`](detekt.sh) — downloads the pinned CLI (cached in
-  `~/.cache/heapy-detekt`), resolves the config, runs detekt.
+- [`detekt.yml`](detekt.yml) — the config. Self-contained, based on the generated
+  default config of the target detekt version. Every deviation from the default is
+  marked with a `# HEAPY:` comment.
+- [`plugins/heapy-detekt`](plugins/heapy-detekt) — Kotlin Toolchain plugin. Registers
+  a `detekt` check.
+- [`detekt.sh`](detekt.sh) — standalone runner for repositories without the toolchain.
+- [`install.sh`](install.sh) — copies the three into a repository.
+
+## Install
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Heapy/detekt-config/main/install.sh | bash
+```
+
+Run it from the root of the target repository, or pass the directory:
+`./install.sh path/to/repo`.
+
+It installs `detekt.yml`, `detekt.sh`, `plugins/heapy-detekt/`, and a
+`.detekt-config-version` stamp naming the commit the files came from.
+
+Re-run the same command to update. Installed files are overwritten, so do not edit
+them in the consumer repository — change them here and re-install.
 
 ## Versioning
 
-Git tags: `<detekt-version>-<config-revision>`.
+By commit. The toolchain does not support publishing plugins
+([reference](https://github.com/JetBrains/kotlin-toolchain/blob/main/docs/src/reference/project.md):
+*"only dependencies on local plugin modules are supported"*), so the plugin has to
+live inside each repository. The config is copied along with it, and
+`.detekt-config-version` records which commit of this repository the copy came from.
 
-Examples: `2.0.0-alpha.6-1`, `2.0.0-alpha.6-2`.
+`install.sh` resolves the commit before downloading, so an install never picks up a
+half-pushed branch state.
 
-A tag pins both the config content and the detekt version its keys are valid for.
-Consumers reference the config by tag:
+## Kotlin Toolchain repositories
 
-```
-https://raw.githubusercontent.com/Heapy/detekt-config/<tag>/detekt.yml
-```
+After `install.sh`, add to `project.yaml`:
 
-Tags are immutable. A rule change is a new revision tag. A detekt upgrade is a new
-version prefix: regenerate the default config (`detekt-cli --generate-config`),
-re-apply the `# HEAPY:` deviations, tag.
-
-## Usage in a repository
-
-Copy `detekt.sh` into the repository root. The pinned `CONFIG_TAG` inside the script
-is the version knob. Then:
-
-```sh
-./detekt.sh
+```yaml
+modules:
+  - //plugins/heapy-detekt
+plugins:
+  - //plugins/heapy-detekt
 ```
 
-The script exits non-zero when detekt finds issues.
+And to every `module.yaml` that needs the check:
+
+```yaml
+plugins:
+  heapy-detekt: enabled
+```
+
+Run `./kotlin check detekt`, or plain `./kotlin check` to run it with the tests.
+
+The plugin reads `detekt.yml` from the project root. Point it elsewhere with the
+`configFile` setting:
+
+```yaml
+plugins:
+  heapy-detekt:
+    enabled: true
+    configFile: //config/detekt.yml
+```
+
+The plugin targets toolchain **0.12.x**. The `kotlin` / `kotlin.bat` wrappers in this
+repository pin 0.12.0. The wrapper carries a checksum of the distribution, so upgrade
+it with `./kotlin update` — never by editing the version by hand.
+
+The plugin analyzes main JVM sources (`module.kotlinJavaSources`). Test sources are
+not covered yet.
+
+## Other repositories
+
+Run `./detekt.sh`. It downloads the pinned detekt CLI (cached in
+`~/.cache/heapy-detekt`) and runs it against the `detekt.yml` next to the script.
 Extra arguments go to `detekt-cli` verbatim, e.g. `./detekt.sh --input src`.
 
-> **Analysis mode:** `detekt.sh` runs detekt in `light` analysis mode (no compiler
-> classpath). Rules that need type resolution — e.g. `SuspendFunSwallowedCancellation`,
-> `SuspendFunInFinallySection`, `DataClassShouldBeImmutable`, `VarCouldBeVal` — are
-> silently skipped in this mode. They apply only when detekt runs with compiler
-> information (`--analysis-mode full` with classpath, or the Gradle plugin).
+Such repositories can delete `plugins/heapy-detekt` after installing.
 
-> **Note:** SDKMAN (`sdk install detekt`) currently ships only detekt 1.x.
-> Until 2.0 is released there, `detekt.sh` downloads the CLI from GitHub releases
-> itself and caches it. Once SDKMAN has 2.x, an installed `detekt-cli` can be used
-> directly: `detekt-cli --config detekt.yml`.
+> **Note:** SDKMAN (`sdk install detekt`) currently ships only detekt 1.x, so
+> `detekt.sh` fetches the CLI from GitHub releases itself.
 
-## Kotlin Toolchain plugin
+## CI gate
 
-[`plugins/heapy-detekt`](plugins/heapy-detekt) is a plugin for the
-[JetBrains Kotlin Toolchain](https://github.com/JetBrains/kotlin-toolchain) **0.12.x**.
-It registers a `detekt` check that runs detekt in-process with the shared config.
-
-The `kotlin` / `kotlin.bat` wrapper scripts in this repository pin toolchain 0.12.0
-(the wrapper carries a checksum of the distribution, so upgrade it with
-`./kotlin update`, never by editing the version by hand).
-
-Usage in a toolchain project:
-
-1. Copy the `plugins/heapy-detekt` directory into the project.
-2. Register it in `project.yaml`:
-
-   ```yaml
-   modules:
-     - ./plugins/heapy-detekt
-   plugins:
-     - ./plugins/heapy-detekt
-   ```
-
-3. Enable it in each `module.yaml` that needs the check:
-
-   ```yaml
-   plugins:
-     heapy-detekt: enabled
-   ```
-
-4. Run: `./kotlin check detekt` (or plain `./kotlin check`).
-
-Settings:
-
-- `configTag` — tag of this repository to download `detekt.yml` from
-  (default: the tag pinned in `HeapyDetektSettings.kt`).
-- `configFile` — local config path; when set, `configTag` is ignored.
-  The [`example`](example) module uses this with `//detekt.yml`. The `//` prefix is a
-  project-root-relative path, added in toolchain 0.12.0.
-
-The plugin analyzes main JVM sources (`module.kotlinJavaSources`); test sources are
-not covered yet. Like `detekt.sh`, it runs detekt without a compiler classpath, so
-type-resolution rules do not apply.
-
-## CI gate (GitHub Actions)
+Both runners exit non-zero when detekt reports an issue
+(`warningsAsErrors: true` in the config), so no wrapper logic is needed.
 
 ```yaml
 jobs:
@@ -104,7 +100,12 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - run: ./detekt.sh
+      - run: ./detekt.sh          # or: ./kotlin check detekt
 ```
 
-The job fails when detekt reports any issue (`warningsAsErrors: true` in the config).
+## Analysis mode
+
+Both runners analyze without a compiler classpath (`light` mode). Rules that need
+type resolution — `SuspendFunSwallowedCancellation`, `SuspendFunInFinallySection`,
+`DataClassShouldBeImmutable`, `VarCouldBeVal` and others — are silently skipped. They
+apply only when detekt runs with compiler information.

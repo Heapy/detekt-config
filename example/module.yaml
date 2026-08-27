@@ -1,6 +1,4 @@
 product: jvm/lib
 
 plugins:
-  heapy-detekt:
-    enabled: true
-    configFile: //detekt.yml
+  heapy-detekt: enabled

@@ -6,12 +6,8 @@ import java.nio.file.Path
 @Configurable
 interface HeapyDetektSettings {
     /**
-     * Tag of the Heapy/detekt-config repository to download detekt.yml from.
-     */
-    val configTag: String get() = "2.0.0-alpha.6-1"
-
-    /**
-     * Local detekt config file. When set, [configTag] is ignored.
+     * Detekt config file. Defaults to detekt.yml in the project root,
+     * which is where install.sh puts it.
      */
     val configFile: Path?
 }
