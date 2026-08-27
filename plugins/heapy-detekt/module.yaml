@@ -1,0 +1,10 @@
+product: jvm/amper-plugin
+
+description: Runs detekt with the shared Heapy configuration as a check
+
+dependencies:
+  - dev.detekt:detekt-cli:2.0.0-alpha.6
+  - dev.detekt:detekt-tooling:2.0.0-alpha.6
+
+pluginInfo:
+  settingsClass: io.heapy.detekt.plugin.HeapyDetektSettings

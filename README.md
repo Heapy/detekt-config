@@ -49,6 +49,44 @@ Extra arguments go to `detekt-cli` verbatim, e.g. `./detekt.sh --input src`.
 > itself and caches it. Once SDKMAN has 2.x, an installed `detekt-cli` can be used
 > directly: `detekt-cli --config detekt.yml`.
 
+## Kotlin Toolchain plugin
+
+[`plugins/heapy-detekt`](plugins/heapy-detekt) is a plugin for the
+[JetBrains Kotlin Toolchain](https://github.com/JetBrains/kotlin-toolchain) (0.11.x).
+It registers a `detekt` check that runs detekt in-process with the shared config.
+
+Usage in a toolchain project:
+
+1. Copy the `plugins/heapy-detekt` directory into the project.
+2. Register it in `project.yaml`:
+
+   ```yaml
+   modules:
+     - ./plugins/heapy-detekt
+   plugins:
+     - ./plugins/heapy-detekt
+   ```
+
+3. Enable it in each `module.yaml` that needs the check:
+
+   ```yaml
+   plugins:
+     heapy-detekt: enabled
+   ```
+
+4. Run: `./kotlin check detekt` (or plain `./kotlin check`).
+
+Settings:
+
+- `configTag` — tag of this repository to download `detekt.yml` from
+  (default: the tag pinned in `HeapyDetektSettings.kt`).
+- `configFile` — local config path; when set, `configTag` is ignored.
+  The [`example`](example) module uses this with the repo-root `detekt.yml`.
+
+The plugin analyzes main JVM sources (`module.kotlinJavaSources`); test sources are
+not covered yet. Like `detekt.sh`, it runs detekt without a compiler classpath, so
+type-resolution rules do not apply.
+
 ## CI gate (GitHub Actions)
 
 ```yaml

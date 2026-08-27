@@ -1,0 +1,6 @@
+modules:
+  - ./example
+  - ./plugins/heapy-detekt
+
+plugins:
+  - ./plugins/heapy-detekt
