@@ -73,23 +73,21 @@ it with `./kotlin update` — never by editing the version by hand.
 
 ### What the plugin sees
 
-The plugin reads `module.kotlinJavaSources`, which covers **main common and JVM
-sources**. Not covered:
+Source directories come from two places:
 
-- test sources;
-- native, JS and Wasm fragments of a multiplatform module (`src@macosArm64`,
-  `src@js`, …). They are skipped silently — the check passes without reading them.
+1. `module.kotlinJavaSources` — the toolchain's own answer. It respects the module
+   layout (`amper` and `maven-like` both work) and covers main common and JVM
+   sources. Generated sources are not included, which is what a linter wants.
+2. Every `src@*` directory in the module root. `kotlinJavaSources` does not report
+   native, JS or Wasm fragments, and 0.12.0 exposes no reference that does, so the
+   plugin picks them up by name.
 
-This is a toolchain limitation, not a choice: 0.12.0 exposes no reference to those
-fragments, and the docs state that most built-in configurables requesting files from
-the build are JVM-only.
+The two are merged and de-duplicated, so a fragment reported by both is analyzed
+once. The toolchain docs list multiplatform source directories in `ModuleSources` as
+"coming soon"; when that lands, step 2 stops finding anything new and can be dropped.
 
-A multiplatform repository that needs every fragment checked should run `./detekt.sh`
-over the module directory instead, which reads the files directly:
-
-```sh
-./detekt.sh --input lib
-```
+Test sources are not covered. `src@*` never matches `test`, `test@jvm` or
+`src/test/kotlin`.
 
 ## Other repositories
 

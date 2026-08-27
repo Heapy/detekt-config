@@ -2,6 +2,7 @@ tasks:
   detekt:
     action: !io.heapy.detekt.plugin.runDetekt
       sources: ${module.kotlinJavaSources}
+      moduleRootDir: ${module.rootDir}
       configFile: ${pluginSettings.configFile}
       defaultConfigFile: ${project.rootDir}/detekt.yml
 

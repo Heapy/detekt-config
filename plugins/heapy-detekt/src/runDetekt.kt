@@ -6,16 +6,26 @@ import org.jetbrains.amper.plugins.ModuleSources
 import org.jetbrains.amper.plugins.TaskAction
 import java.nio.file.Path
 import kotlin.io.path.absolutePathString
-import kotlin.io.path.exists
+import kotlin.io.path.isDirectory
 import kotlin.io.path.isRegularFile
+import kotlin.io.path.listDirectoryEntries
 
 @TaskAction
 fun runDetekt(
     @Input sources: ModuleSources,
+    @Input(inferTaskDependency = false) moduleRootDir: Path,
     @Input(inferTaskDependency = false) configFile: Path?,
     @Input(inferTaskDependency = false) defaultConfigFile: Path,
 ) {
-    val inputDirs = sources.sourceDirectories.filter { it.exists() }
+    val inputDirs = buildSet {
+        sources.sourceDirectories.forEach { if (it.isDirectory()) add(it.toRealPath()) }
+        // Platform fragments of a multiplatform module. ModuleSources reports the
+        // common and JVM ones, but not native/JS/Wasm, and 0.12.0 exposes no
+        // reference for those. Once it does, these paths are already in the set
+        // and this loop adds nothing.
+        moduleRootDir.listDirectoryEntries("src@*")
+            .forEach { if (it.isDirectory()) add(it.toRealPath()) }
+    }
     if (inputDirs.isEmpty()) {
         println("No source directories, skipping detekt")
         return
