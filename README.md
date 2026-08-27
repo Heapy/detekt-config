@@ -164,9 +164,9 @@ check passes, so the plugin starts detekt as a **separate process**. That is why
 `plugin.yaml` resolves `dev.detekt:detekt-cli` itself instead of the plugin module
 depending on it.
 
-> The detekt version is pinned in the `dev.detekt:*` coordinates in
-> `plugins/heapy-detekt/plugin.yaml`, and again in each Gradle build file. Keep them
-> in sync.
+> The detekt version is pinned in three places: the `dev.detekt:*` coordinates in
+> `plugins/heapy-detekt/plugin.yaml`, `DETEKT_VERSION` in `install.sh` (it feeds the
+> Gradle snippet the installer prints), and each Gradle build file. Keep them in sync.
 
 ## Formatting rules
 

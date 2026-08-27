@@ -1,7 +1,8 @@
 # Heapy shared detekt configuration.
-# Base: default config of detekt 2.0.0-alpha.6 (detekt-cli --generate-config).
+# Base: default config of detekt 2.0.0-alpha.6 (detekt-cli --generate-config),
+# plus the 'ktlint' formatting rules from detekt-rules-ktlint-wrapper.
 # Every deviation from the default is marked with a "# HEAPY:" comment.
-# Versioning: git tags "<detekt-version>-<config-revision>", e.g. "2.0.0-alpha.6-1".
+# Installed by install.sh from Heapy/detekt-config; do not edit in place.
 
 config:
   validation: true
