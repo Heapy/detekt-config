@@ -8,8 +8,11 @@ Shared [detekt](https://detekt.dev) configuration for all Heapy repositories.
   Every deviation from the default is marked with a `# HEAPY:` comment.
 - [`plugins/heapy-detekt`](plugins/heapy-detekt) — Kotlin Toolchain plugin. Registers
   a `detekt` check.
-- [`detekt.sh`](detekt.sh) — standalone runner for repositories without the toolchain.
-- [`install.sh`](install.sh) — copies the three into a repository.
+- [`install.sh`](install.sh) — copies these into a repository.
+
+Heapy uses two build systems, and both run detekt through a plugin: Gradle through
+detekt's own Gradle plugin, the Kotlin Toolchain through ours. There is no
+standalone runner script.
 
 ## Install
 
@@ -20,8 +23,14 @@ curl -fsSL https://raw.githubusercontent.com/Heapy/detekt-config/main/install.sh
 Run it from the root of the target repository, or pass the directory:
 `./install.sh path/to/repo`.
 
-It installs `detekt.yml`, `detekt.sh`, `plugins/heapy-detekt/`, and a
-`.detekt-config-version` stamp naming the commit the files came from.
+It installs `detekt.yml` and a `.detekt-config-version` stamp naming the commit the
+files came from. In a Kotlin Toolchain repository it also installs
+`plugins/heapy-detekt/`; a Gradle repository does not need it.
+
+The build system is detected from the target directory — `project.yaml` or
+`module.yaml` means toolchain, `build.gradle.kts` and friends mean Gradle. Override
+it with `DETEKT_CONFIG_KIND=ktc` or `DETEKT_CONFIG_KIND=gradle`. Either way the
+script prints the wiring for what it found.
 
 Re-run the same command to update. Installed files are overwritten, so do not edit
 them in the consumer repository — change them here and re-install.
@@ -92,21 +101,39 @@ once. The toolchain docs list multiplatform source directories in `ModuleSources
 Test sources are not covered. `src@*` never matches `test`, `test@jvm` or
 `src/test/kotlin`.
 
-## Other repositories
+## Gradle repositories
 
-Run `./detekt.sh`. It downloads the pinned detekt CLI (cached in
-`~/.cache/heapy-detekt`) and runs it against the `detekt.yml` next to the script.
-Extra arguments go to `detekt-cli` verbatim, e.g. `./detekt.sh --input src`.
+Detekt ships its own Gradle plugin, so nothing is needed from this repository except
+`detekt.yml`. Add to `build.gradle.kts`:
 
-Such repositories can delete `plugins/heapy-detekt` after installing.
+```kotlin
+plugins {
+    id("dev.detekt") version "2.0.0-alpha.6"
+}
 
-> **Note:** SDKMAN (`sdk install detekt`) currently ships only detekt 1.x, so
-> `detekt.sh` fetches the CLI from GitHub releases itself.
+dependencies {
+    // Mandatory: detekt.yml configures the ktlint rules, and config validation
+    // fails when the rule set is not on the classpath.
+    detektPlugins("dev.detekt:detekt-rules-ktlint-wrapper:2.0.0-alpha.6")
+}
+
+detekt {
+    config.setFrom(file("detekt.yml"))
+}
+
+tasks.check {
+    dependsOn("detektMain")
+}
+```
+
+Run `./gradlew detektMain`. Use `detektMain`, not `detekt`: the `detektMain` task
+compiles first and hands detekt the classpath, which is what turns on the rules that
+need type resolution.
 
 ## CI gate
 
-Both runners exit non-zero when detekt reports an issue
-(`warningsAsErrors: true` in the config), so no wrapper logic is needed.
+Detekt fails the build when it reports an issue (`warningsAsErrors: true` in the
+config), so no wrapper logic is needed.
 
 ```yaml
 jobs:
@@ -118,17 +145,18 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - run: ./detekt.sh          # or: ./kotlin check detekt
+      - run: ./gradlew detektMain      # or: ./kotlin check detekt
 ```
 
 ## Analysis mode
 
-The two runners differ here.
+Both build systems run **full analysis**, where detekt gets the module's compile
+classpath. Rules that need type resolution — `VarCouldBeVal`, `UnnecessarySafeCall`,
+`SuspendFunSwallowedCancellation`, `DataClassShouldBeImmutable` and others — only
+report in this mode. In `light` mode they silently find nothing.
 
-**The plugin runs full analysis.** It passes the module's compile classpath to
-detekt, so rules that need type resolution — `VarCouldBeVal`,
-`UnnecessarySafeCall`, `SuspendFunSwallowedCancellation`, `DataClassShouldBeImmutable`
-and others — actually report. In `light` mode they silently find nothing.
+Gradle gets this from the `detektMain` task. The toolchain plugin passes
+`module.compileClasspath` itself.
 
 Full analysis starts the Kotlin compiler frontend, which leaves a non-daemon thread
 behind. Running that inside the toolchain JVM hangs the build forever after the
@@ -136,22 +164,16 @@ check passes, so the plugin starts detekt as a **separate process**. That is why
 `plugin.yaml` resolves `dev.detekt:detekt-cli` itself instead of the plugin module
 depending on it.
 
-**`detekt.sh` still runs light analysis**, because it has no way to know the
-classpath. It forwards arguments verbatim, so full analysis is available by hand:
-
-```sh
-./detekt.sh --input src --analysis-mode full --classpath "$(cat classpath.txt)"
-```
-
-> The detekt version is pinned in two files: `DETEKT_VERSION` in `detekt.sh`, and the
-> `dev.detekt:*` coordinates in `plugins/heapy-detekt/plugin.yaml`. Keep them in sync.
+> The detekt version is pinned in the `dev.detekt:*` coordinates in
+> `plugins/heapy-detekt/plugin.yaml`, and again in each Gradle build file. Keep them
+> in sync.
 
 ## Formatting rules
 
 `detekt.yml` configures the `ktlint` rule set (called `formatting` in detekt 1.x),
-which comes from `dev.detekt:detekt-rules-ktlint-wrapper`. Both runners load it: the
-plugin resolves it onto detekt's classpath, `detekt.sh` downloads the jar and passes
-`--plugins`.
+which comes from `dev.detekt:detekt-rules-ktlint-wrapper`. Both build systems load it:
+the toolchain plugin resolves it onto detekt's classpath, Gradle takes it through
+`detektPlugins`.
 
 The jar is not optional. Config validation rejects the whole `ktlint` section as an
 unknown property when it is missing, and the run fails before analyzing anything.
@@ -165,11 +187,8 @@ Both force a particular way of wrapping signatures across lines. On a real
 hand-written module they produced 86 of 99 findings — the rest of the set produced 13.
 
 Expect a large number of findings on generated code (one generated-heavy module
-produced over 13000). Exclude such directories rather than fixing them:
-
-```sh
-./detekt.sh --input src --excludes "**/generated/**"
-```
+produced over 13000). Exclude such directories in the config rather than fixing them,
+by adding the path to the `excludes` of the noisy rules.
 
 Most of these rules can fix themselves — detekt supports `--auto-correct`. Neither
 runner passes it: both are gates, and a check that rewrites files is a surprise.
