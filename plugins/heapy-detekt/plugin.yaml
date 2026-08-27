@@ -2,7 +2,11 @@ tasks:
   detekt:
     action: !io.heapy.detekt.plugin.runDetekt
       sources: ${module.kotlinJavaSources}
+      compileClasspath: ${module.compileClasspath}
+      detektClasspath:
+        - dev.detekt:detekt-cli:2.0.0-alpha.6
       moduleRootDir: ${module.rootDir}
+      jvmTarget: ${module.settings.jvm.release}
       configFile: ${pluginSettings.configFile}
       defaultConfigFile: ${project.rootDir}/detekt.yml
 

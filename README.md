@@ -57,6 +57,9 @@ plugins:
 
 Run `./kotlin check detekt`, or plain `./kotlin check` to run it with the tests.
 
+The check compiles the module first, because full analysis needs its compile
+classpath. See [Analysis mode](#analysis-mode).
+
 The plugin reads `detekt.yml` from the project root. Point it elsewhere with the
 `configFile` setting:
 
@@ -120,7 +123,26 @@ jobs:
 
 ## Analysis mode
 
-Both runners analyze without a compiler classpath (`light` mode). Rules that need
-type resolution — `SuspendFunSwallowedCancellation`, `SuspendFunInFinallySection`,
-`DataClassShouldBeImmutable`, `VarCouldBeVal` and others — are silently skipped. They
-apply only when detekt runs with compiler information.
+The two runners differ here.
+
+**The plugin runs full analysis.** It passes the module's compile classpath to
+detekt, so rules that need type resolution — `VarCouldBeVal`,
+`UnnecessarySafeCall`, `SuspendFunSwallowedCancellation`, `DataClassShouldBeImmutable`
+and others — actually report. In `light` mode they silently find nothing.
+
+Full analysis starts the Kotlin compiler frontend, which leaves a non-daemon thread
+behind. Running that inside the toolchain JVM hangs the build forever after the
+check passes, so the plugin starts detekt as a **separate process**. That is why
+`plugin.yaml` resolves `dev.detekt:detekt-cli` itself instead of the plugin module
+depending on it.
+
+**`detekt.sh` still runs light analysis**, because it has no way to know the
+classpath. It forwards arguments verbatim, so full analysis is available by hand:
+
+```sh
+./detekt.sh --input src --analysis-mode full --classpath "$(cat classpath.txt)"
+```
+
+> The detekt version is pinned in two places: `DETEKT_VERSION` in `detekt.sh` and the
+> `dev.detekt:detekt-cli` coordinate in `plugins/heapy-detekt/plugin.yaml`. Keep them
+> in sync.

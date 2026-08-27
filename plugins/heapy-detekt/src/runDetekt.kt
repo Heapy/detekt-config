@@ -1,21 +1,29 @@
 package io.heapy.detekt.plugin
 
-import dev.detekt.cli.CliRunner
+import org.jetbrains.amper.plugins.Classpath
 import org.jetbrains.amper.plugins.Input
 import org.jetbrains.amper.plugins.ModuleSources
 import org.jetbrains.amper.plugins.TaskAction
+import java.io.File
 import java.nio.file.Path
+import kotlin.io.path.Path
 import kotlin.io.path.absolutePathString
+import kotlin.io.path.div
 import kotlin.io.path.isDirectory
 import kotlin.io.path.isRegularFile
 import kotlin.io.path.listDirectoryEntries
 
+private const val ISSUES_FOUND = 2
+
 @TaskAction
 fun runDetekt(
     @Input sources: ModuleSources,
+    @Input compileClasspath: Classpath,
+    @Input detektClasspath: Classpath,
     @Input(inferTaskDependency = false) moduleRootDir: Path,
     @Input(inferTaskDependency = false) configFile: Path?,
     @Input(inferTaskDependency = false) defaultConfigFile: Path,
+    jvmTarget: String?,
 ) {
     val inputDirs = buildSet {
         sources.sourceDirectories.forEach { if (it.isDirectory()) add(it.toRealPath()) }
@@ -36,16 +44,45 @@ fun runDetekt(
         error("Detekt config $config not found. Run install.sh to get it.")
     }
 
-    // One --input per directory: detekt does not split a joined path list here.
-    val args = buildList {
+    // Detekt runs in its own process on purpose. Full analysis starts the Kotlin
+    // compiler frontend, which leaves a non-daemon thread behind, and running that
+    // in the toolchain JVM stops the build from ever finishing.
+    val command = buildList {
+        add((Path(System.getProperty("java.home")) / "bin" / "java").absolutePathString())
+        add("-cp")
+        add(detektClasspath.resolvedFiles.joinToString(File.pathSeparator) { it.absolutePathString() })
+        add("dev.detekt.cli.Main")
+
         add("--config")
         add(config.absolutePathString())
+        // One --input per directory: detekt does not split a joined path list here.
         inputDirs.forEach {
             add("--input")
             add(it.absolutePathString())
         }
-    }.toTypedArray()
+        // Without the classpath detekt falls back to 'light' analysis, where every
+        // rule that needs type information reports nothing at all.
+        add("--analysis-mode")
+        add("full")
+        compileClasspath.resolvedFiles.forEach {
+            add("--classpath")
+            add(it.absolutePathString())
+        }
+        if (jvmTarget != null) {
+            add("--jvm-target")
+            add(jvmTarget)
+        }
+    }
 
-    val result = CliRunner().run(args, System.out, System.err)
-    result.error?.let { throw it }
+    val process = ProcessBuilder(command)
+        .redirectErrorStream(true)
+        .start()
+    // Drain the pipe before waiting: a full pipe would block detekt forever.
+    process.inputStream.bufferedReader().forEachLine(::println)
+
+    when (val exitCode = process.waitFor()) {
+        0 -> Unit
+        ISSUES_FOUND -> error("Detekt found issues")
+        else -> error("Detekt failed with exit code $exitCode")
+    }
 }
