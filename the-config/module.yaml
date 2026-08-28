@@ -18,9 +18,10 @@ repositories:
     url: mavenLocal
     publish: true
 
-# heapy-detekt is not enabled here yet: the toolchain rejects a task input that
-# sits inside the module's own root, and the config file does. Step 4 moves the
-# plugin to a classpath resource, which removes the conflict.
+plugins:
+  # No configOverride here: a task input inside the module's own root is rejected
+  # by the toolchain, so this module lints against the config in the published jar.
+  heapy-detekt: enabled
 
 settings:
   jvm:

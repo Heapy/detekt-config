@@ -4,9 +4,15 @@ dependencies:
   # The @HeapySuppress annotation. SOURCE retention, so nothing reaches the jar.
   - ../the-config: compile-only
 
+repositories:
+  # TEMPORARY: until io.heapy.detekt:the-config:0.1.0 is on Central.
+  - id: mavenLocal
+    url: mavenLocal
+
 plugins:
   heapy-detekt:
     enabled: true
-    # This repository has no root detekt.yml: the config lives in the module that
-    # ships it. Consumers keep the default, which is the project root.
-    configFile: //the-config/resources/heapy/detekt.yml
+    # Merged on top of the config in the published jar, so this repository lints
+    # against its own working tree. A key deleted here still comes from the jar
+    # until the next release.
+    configOverride: //the-config/resources/heapy/detekt.yml

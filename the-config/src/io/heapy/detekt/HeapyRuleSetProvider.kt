@@ -11,5 +11,5 @@ import dev.detekt.api.RuleSetProvider
 class HeapyRuleSetProvider : RuleSetProvider {
     override val ruleSetId = RuleSetId("heapy")
 
-    override fun instance() = RuleSet(ruleSetId, listOf(::SuppressWithoutApproval))
+    override fun instance() = RuleSet(ruleSetId, listOf(::ForbiddenSuppress))
 }

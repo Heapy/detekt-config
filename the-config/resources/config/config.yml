@@ -1,6 +1,6 @@
 heapy:
   active: true
-  SuppressWithoutApproval:
+  ForbiddenSuppress:
     active: true
     allowedSuppressions: []
     allowFileLevel: false

@@ -7,6 +7,7 @@ set -euo pipefail
 REPO="${DETEKT_CONFIG_REPO:-Heapy/detekt-config}"
 REF="${DETEKT_CONFIG_REF:-main}"
 DETEKT_VERSION="2.0.0-alpha.6"
+THE_CONFIG_VERSION="0.1.0"
 
 TARGET="${1:-$PWD}"
 if [ ! -d "$TARGET" ]; then
@@ -63,36 +64,67 @@ fi
 SHORT="${SHA:0:12}"
 case "$SHA" in *-dirty) SHORT="$SHORT-dirty" ;; esac
 
-for f in the-config/resources/heapy/detekt.yml plugins/heapy-detekt; do
-    if [ ! -e "$SRC/$f" ]; then
-        echo "ERROR: $f missing in the source tree, install aborted" >&2
+PLUGIN_YAML="$SRC/plugins/heapy-detekt/plugin.yaml"
+if [ ! -e "$PLUGIN_YAML" ]; then
+    echo "ERROR: plugins/heapy-detekt missing in the source tree, install aborted" >&2
+    exit 1
+fi
+
+# The versions printed below must match what the plugin resolves, or a Gradle
+# consumer and a toolchain consumer end up on different rule sets. Both files come
+# from the same tarball, so the check is free.
+for coordinate in "dev.detekt:detekt-cli:$DETEKT_VERSION" \
+    "dev.detekt:detekt-rules-ktlint-wrapper:$DETEKT_VERSION" \
+    "io.heapy.detekt:the-config:$THE_CONFIG_VERSION"; do
+    if ! grep -qF "$coordinate" "$PLUGIN_YAML"; then
+        echo "ERROR: plugin.yaml does not resolve $coordinate; this script is stale" >&2
         exit 1
     fi
 done
 
-install -m 644 "$SRC/the-config/resources/heapy/detekt.yml" "$TARGET/detekt.yml"
-INSTALLED="  detekt.yml"
+# Earlier versions copied detekt.yml into the target. Leaving it behind is worse than
+# deleting it: a build file still pointing at that file lints against a frozen config
+# and says nothing.
+REMOVED=""
+if [ -f "$TARGET/detekt.yml" ]; then
+    rm -f "$TARGET/detekt.yml"
+    REMOVED="  detekt.yml (the config is a dependency now)"
+fi
+if [ "$KIND" != ktc ] && [ -f "$TARGET/.detekt-config-version" ]; then
+    rm -f "$TARGET/.detekt-config-version"
+    REMOVED="$REMOVED
+  .detekt-config-version (nothing is installed here any more)"
+fi
 
+INSTALLED=""
 if [ "$KIND" = ktc ]; then
     mkdir -p "$TARGET/plugins"
     rm -rf "$TARGET/plugins/heapy-detekt"
     cp -R "$SRC/plugins/heapy-detekt" "$TARGET/plugins/heapy-detekt"
-    INSTALLED="$INSTALLED
-  plugins/heapy-detekt/"
-fi
-
-cat > "$TARGET/.detekt-config-version" <<EOF
+    cat > "$TARGET/.detekt-config-version" <<EOF
 repository=$ORIGIN
 ref=$REF
 commit=$SHA
 kind=$KIND
+the_config=$THE_CONFIG_VERSION
 EOF
-INSTALLED="$INSTALLED
+    INSTALLED="  plugins/heapy-detekt/
   .detekt-config-version"
+fi
 
 echo
-echo "Installed into $TARGET at commit $SHORT ($KIND)"
-echo "$INSTALLED"
+if [ -n "$INSTALLED" ]; then
+    echo "Installed into $TARGET at commit $SHORT ($KIND)"
+    echo "$INSTALLED"
+else
+    echo "Nothing to install into $TARGET ($KIND)"
+    echo "  The config is a dependency now: io.heapy.detekt:the-config"
+fi
+if [ -n "$REMOVED" ]; then
+    echo
+    echo "Removed:"
+    echo "$REMOVED"
+fi
 echo
 
 if [ "$KIND" != gradle ]; then
@@ -100,9 +132,9 @@ if [ "$KIND" != gradle ]; then
 Kotlin Toolchain, add to project.yaml:
 
   modules:
-    - //plugins/heapy-detekt
+    - ./plugins/heapy-detekt
   plugins:
-    - //plugins/heapy-detekt
+    - ./plugins/heapy-detekt
 
 and to every module.yaml that needs the check:
 
@@ -110,6 +142,11 @@ and to every module.yaml that needs the check:
     heapy-detekt: enabled
 
 Then run: ./kotlin check detekt
+
+To write @HeapySuppress in a module, add to its module.yaml:
+
+  dependencies:
+    - io.heapy.detekt:the-config:$THE_CONFIG_VERSION: compile-only
 
 EOF
 fi
@@ -122,14 +159,25 @@ Gradle, add to build.gradle.kts:
       id("dev.detekt") version "$DETEKT_VERSION"
   }
 
+  // Exactly one file may be read from this configuration, hence non-transitive.
+  val detektConfig: Configuration by configurations.creating { isTransitive = false }
+
   dependencies {
-      // Mandatory: detekt.yml configures the ktlint rules, and config
-      // validation fails when the rule set is not on the classpath.
+      // Mandatory: the config names the ktlint and heapy rule sets, and config
+      // validation fails when a rule set is not on the classpath.
       detektPlugins("dev.detekt:detekt-rules-ktlint-wrapper:$DETEKT_VERSION")
+      detektPlugins("io.heapy.detekt:the-config:$THE_CONFIG_VERSION")
+      detektConfig("io.heapy.detekt:the-config:$THE_CONFIG_VERSION")
+      // Only if production code uses @HeapySuppress:
+      compileOnly("io.heapy.detekt:the-config:$THE_CONFIG_VERSION")
   }
 
   detekt {
-      config.setFrom(file("detekt.yml"))
+      // The Gradle plugin has no --config-resource, so the YAML is pulled out of
+      // the jar into a file.
+      config.setFrom(
+          resources.text.fromArchiveEntry(detektConfig, "heapy/detekt.yml").asFile(),
+      )
   }
 
   tasks.check {

@@ -5,6 +5,6 @@ import java.nio.file.Path
 
 @Configurable
 interface HeapyDetektSettings {
-    /** Overrides the project-root detekt.yml. */
-    val configFile: Path?
+    /** Merged on top of the config shipped in io.heapy.detekt:the-config. */
+    val configOverride: Path?
 }

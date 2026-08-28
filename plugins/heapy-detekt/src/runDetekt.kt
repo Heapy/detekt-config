@@ -3,15 +3,18 @@ package io.heapy.detekt.plugin
 import org.jetbrains.amper.plugins.Classpath
 import org.jetbrains.amper.plugins.Input
 import org.jetbrains.amper.plugins.ModuleSources
+import org.jetbrains.amper.plugins.Output
 import org.jetbrains.amper.plugins.TaskAction
 import java.io.File
 import java.nio.file.Path
+import java.util.zip.ZipFile
 import kotlin.io.path.Path
 import kotlin.io.path.absolutePathString
+import kotlin.io.path.createParentDirectories
 import kotlin.io.path.div
 import kotlin.io.path.isDirectory
-import kotlin.io.path.isRegularFile
 import kotlin.io.path.listDirectoryEntries
+import kotlin.io.path.outputStream
 
 private const val ISSUES_FOUND = 2
 
@@ -21,8 +24,9 @@ fun runDetekt(
     @Input compileClasspath: Classpath,
     @Input detektClasspath: Classpath,
     @Input(inferTaskDependency = false) moduleRootDir: Path,
-    @Input(inferTaskDependency = false) configFile: Path?,
-    @Input(inferTaskDependency = false) defaultConfigFile: Path,
+    configResource: String,
+    @Input(inferTaskDependency = false) configOverride: Path?,
+    @Output extractedConfigDir: Path,
     jvmTarget: String?,
 ) {
     val inputDirs = buildSet {
@@ -46,11 +50,6 @@ fun runDetekt(
         return
     }
 
-    val config = configFile ?: defaultConfigFile
-    if (!config.isRegularFile()) {
-        error("Detekt config $config not found. Run install.sh to get it.")
-    }
-
     // Detekt runs in its own process on purpose. Full analysis starts the Kotlin
     // compiler frontend, which leaves a non-daemon thread behind, and running that
     // in the toolchain JVM stops the build from ever finishing.
@@ -60,8 +59,7 @@ fun runDetekt(
         add(detektClasspath.resolvedFiles.joinToString(File.pathSeparator) { it.absolutePathString() })
         add("dev.detekt.cli.Main")
 
-        add("--config")
-        add(config.absolutePathString())
+        addAll(configArguments(detektClasspath, configResource, configOverride, extractedConfigDir))
         // One --input per directory: detekt does not split a joined path list here.
         inputDirs.forEach {
             add("--input")
@@ -91,5 +89,64 @@ fun runDetekt(
         0 -> Unit
         ISSUES_FOUND -> error("Detekt found issues")
         else -> error("Detekt failed with exit code $exitCode")
+    }
+}
+
+/**
+ * `--config` makes detekt ignore `--config-resource` completely, so an override
+ * forces the base config to become a file too. The last `--config` wins, hence the
+ * order.
+ */
+private fun configArguments(
+    detektClasspath: Classpath,
+    configResource: String,
+    configOverride: Path?,
+    extractedConfigDir: Path,
+): List<String> = if (configOverride == null) {
+    listOf("--config-resource", configResource)
+} else {
+    val base = extractedConfigDir / "heapy-detekt.yml"
+    extractResource(detektClasspath, configResource, base)
+    listOf(
+        "--config",
+        base.absolutePathString(),
+        "--config",
+        configOverride.absolutePathString(),
+    )
+}
+
+/**
+ * The config ships inside io.heapy.detekt:the-config, which sits on detekt's
+ * classpath, not on the plugin's own. Reading it through a class loader would look
+ * in the wrong place, so the jars are opened directly.
+ */
+private fun extractResource(
+    detektClasspath: Classpath,
+    resource: String,
+    target: Path,
+) {
+    val name = resource.removePrefix("/")
+    target.createParentDirectories()
+    val copied = detektClasspath.resolvedFiles.any { jar ->
+        copyEntry(jar, name, target)
+    }
+    if (!copied) {
+        error("Resource $resource is on no jar of the detekt classpath")
+    }
+}
+
+private fun copyEntry(
+    jar: Path,
+    name: String,
+    target: Path,
+): Boolean = ZipFile(jar.toFile()).use { zip ->
+    val entry = zip.getEntry(name)
+    if (entry == null) {
+        false
+    } else {
+        zip.getInputStream(entry).use { input ->
+            target.outputStream().use(input::copyTo)
+        }
+        true
     }
 }

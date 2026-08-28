@@ -1,2 +1,5 @@
 build/
 .idea/
+
+# Local release credentials.
+publish.sh
