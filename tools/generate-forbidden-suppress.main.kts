@@ -88,6 +88,11 @@ val names = buildSet {
         add(section)
         separators.forEach { add("detekt$it$section") }
     }
+    // 'all' silences every rule in every set.
+    listOf("all", "All", "ALL").forEach { spelling ->
+        add(spelling)
+        separators.forEach { add("detekt$it$spelling") }
+    }
 }.sorted()
 
 val marker = "  ForbiddenSuppress:"

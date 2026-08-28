@@ -217,7 +217,19 @@ detekt:style:ReturnCount  detekt:style.ReturnCount
 detekt.style:ReturnCount  detekt.style.ReturnCount
 ```
 
-Treat these forms as a review-only escape hatch.
+`all` silences every rule in every set. `all`, `All`, `ALL` and their `detekt:` and
+`detekt.` forms are listed too.
+
+Third, the prefix is matched case-insensitively and stripped repeatedly, so the set
+of working spellings is infinite. A literal list can never be complete:
+
+```
+DETEKT:all                 DETEKT:ReturnCount
+Detekt.ALL                 detekt:detekt:ReturnCount
+```
+
+Treat these forms as a review-only escape hatch. The real fix is the
+`@HeapySuppress` gate, which matches the annotation type instead of the string.
 
 ### Regenerating the list
 
