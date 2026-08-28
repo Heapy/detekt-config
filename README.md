@@ -97,16 +97,12 @@ Source directories come from three places:
    `src/test/java` for the `maven-like` layout. `testResources` is not matched.
 
 The three are merged and de-duplicated, so a fragment reported by more than one is
-analyzed once. The toolchain docs list multiplatform source directories in
-`ModuleSources` as "coming soon"; when that lands, step 2 stops finding anything new
-and can be dropped.
+analyzed once.
 
 ### Test sources are analyzed with the main classpath
 
-`ModuleDataForPlugin` in 0.12.0 offers `name`, `rootDir`, `compileClasspath`,
-`runtimeClasspath`, `kotlinJavaSources`, `resources`, `jar`, `classes`, `self` and
-`settings`. Every one of them is a main-source reference. There is no test
-classpath to ask for, so the plugin hands detekt the main one for the whole module.
+Kotlin Toolchain 0.12.0 exposes no test classpath, so the plugin hands detekt the
+main one for the whole module.
 
 The consequence is a line on every run of a module that has tests:
 
@@ -125,8 +121,7 @@ dependency do not resolve. What this costs:
   and says nothing. Do not read a clean test file as a checked test file.
 
 Gradle does not have this problem: `detektTest` is a separate task with the test
-compile classpath. Drop step 3 and this section once the toolchain exposes a test
-classpath reference.
+compile classpath.
 
 ## Gradle repositories
 
@@ -213,13 +208,16 @@ detekt.ReturnCount     detekt:style.ReturnCount detekt.style:ReturnCount
                                                 style.ReturnCount
 ```
 
-`detekt.yml` lists the first five forms plus the bare rule set name, for every rule
-that is `active: true` and for their aliases. That is 1385 entries.
+`detekt.yml` lists the rule names, rule-set names and singly qualified forms for
+every active rule and alias. Four doubly qualified forms remain valid but are not
+listed because including them exceeds the YAML limit below:
 
-The four doubly qualified forms — `detekt` and the rule set and the rule, in any
-mix of `:` and `.` — are **not** listed and still work. They cost another ~1100
-entries, and the file then breaks the limit below. Nobody writes them by hand and
-the IDE never generates them, but they are a real hole. Look for them in review.
+```
+detekt:style:ReturnCount  detekt:style.ReturnCount
+detekt.style:ReturnCount  detekt.style.ReturnCount
+```
+
+Treat these forms as a review-only escape hatch.
 
 ### Regenerating the list
 
@@ -235,12 +233,6 @@ repository, which is the Kotlin Toolchain CLI.
 > detekt parses the config with snakeyaml, which refuses a document over **102400
 > code points** and fails with a stack trace that never mentions the list. The
 > script checks the result against that limit and writes nothing if it is over.
-> The config is at 91095 as of this commit, so roughly 300 more entries fit.
-
-A second config file would lift this: detekt accepts `--config` more than once and
-merges the files, and the limit is per file. Verified on the CLI path the toolchain
-plugin uses. That is the way to list the four missing forms, at the cost of a second
-file to install and wire into Gradle.
 
 `config > checkExhaustiveness` is `true`, so a rule that a detekt upgrade adds fails
 the run until it is configured here. That is the prompt to regenerate the list.
@@ -273,12 +265,12 @@ Environment defaults — `TimeZone.getDefault`, `ZoneId.systemDefault`,
 `System.getProperty` / `readln` all match if you want them; they are left out on
 purpose. Add them to the `methods` list with a `reason`.
 
-## Line length is set in 17 places
+## Line length must stay synchronized
 
-`MaxLineLength` in the `style` rule set and the 16 `ktlint` rules that carry their
-own `maxLineLength` are all set to 100 by hand. They are separate properties: leave
-one at the default and the wrapping rules disagree with the line-length rule about
-where a line is too long.
+`MaxLineLength` in the `style` rule set and every `ktlint` rule with its own
+`maxLineLength` are set to 100. They are separate properties: leave one at the
+default and the wrapping rules disagree with the line-length rule about where a
+line is too long.
 
 ## Formatting rules
 

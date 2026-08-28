@@ -1,11 +1,9 @@
 #!/usr/bin/env kotlinr
 
 /**
- * Rewrites the 'style > ForbiddenSuppress > rules' list in detekt.yml.
- *
- * The list has to name every string detekt accepts in @Suppress, because
- * ForbiddenSuppress compares the string literally and detekt takes nine
- * spellings of the same rule. Run this after enabling or disabling a rule.
+ * Regenerates the 'style > ForbiddenSuppress > rules' list for every active rule
+ * and alias. ForbiddenSuppress compares suppression strings literally, so each
+ * blocked spelling must be listed. Run this after enabling or disabling a rule.
  *
  * Usage:
  *   ./tools/generate-forbidden-suppress.main.kts [path/to/detekt.yml]
@@ -27,7 +25,6 @@ val sectionPattern = Regex("""^([a-z][a-z-]*):\s*$""")
 val rulePattern = Regex("""^ {2}([A-Za-z]+):\s*$""")
 val quotedPattern = Regex("""'([^']+)'""")
 
-// An id is a rule name or one of its aliases, paired with the rule set it lives in.
 data class Id(
     val section: String,
     val name: String,
@@ -70,9 +67,8 @@ if (ids.isEmpty()) {
 // while an unknown prefix such as 'nonsense:ReturnCount' does not.
 val separators = listOf(":", ".")
 
-// The doubly qualified forms, 'detekt:style:ReturnCount' and its three separator
-// variants, silence a rule too, but listing them costs another ~1100 entries and
-// the whole file then breaks the YAML limit below. They stay open. See README.
+// Doubly qualified forms also silence rules, but including them exceeds detekt's
+// YAML size limit. README documents the remaining escape hatch.
 fun formsOf(id: Id) = buildList {
     add(id.name)
     for (separator in separators) {

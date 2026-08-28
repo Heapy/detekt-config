@@ -27,22 +27,15 @@ fun runDetekt(
 ) {
     val inputDirs = buildSet {
         sources.sourceDirectories.forEach { if (it.isDirectory()) add(it.toRealPath()) }
-        // Platform fragments of a multiplatform module. ModuleSources reports the
-        // common and JVM ones, but not native/JS/Wasm, and 0.12.0 exposes no
-        // reference for those. Once it does, these paths are already in the set
-        // and this loop adds nothing.
+        // ModuleSources 0.12.0 omits native, JS and Wasm fragments.
         moduleRootDir.listDirectoryEntries("src@*")
             .forEach { if (it.isDirectory()) add(it.toRealPath()) }
-        // Test sources, by name for the same reason. ModuleDataForPlugin in 0.12.0
-        // exposes kotlinJavaSources, resources, jar, classes, compileClasspath,
-        // runtimeClasspath, rootDir, name, self and settings. All of them are main
-        // sources; there is no test equivalent to ask for.
-        // 'test' and its platform fragments, but not 'testResources'.
+        // ModuleDataForPlugin 0.12.0 exposes no test-source or test-classpath
+        // reference, so discover test directories by convention.
         listOf("test", "test@*").forEach { glob ->
             moduleRootDir.listDirectoryEntries(glob)
                 .forEach { if (it.isDirectory()) add(it.toRealPath()) }
         }
-        // The maven-like layout, which the amper glob above does not reach.
         listOf("kotlin", "java").forEach {
             val dir = moduleRootDir / "src" / "test" / it
             if (dir.isDirectory()) add(dir.toRealPath())

@@ -5,9 +5,6 @@ import java.nio.file.Path
 
 @Configurable
 interface HeapyDetektSettings {
-    /**
-     * Detekt config file. Defaults to detekt.yml in the project root,
-     * which is where install.sh puts it.
-     */
+    /** Overrides the project-root detekt.yml. */
     val configFile: Path?
 }
