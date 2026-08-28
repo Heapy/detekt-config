@@ -168,6 +168,91 @@ depending on it.
 > `plugins/heapy-detekt/plugin.yaml`, `DETEKT_VERSION` in `install.sh` (it feeds the
 > Gradle snippet the installer prints), and each Gradle build file. Keep them in sync.
 
+## No escape hatches
+
+`@Suppress("SomeRule")` turns a rule off for one declaration, and nothing in the
+config sees it happen. `ForbiddenSuppress` closes that, with two catches.
+
+First, an empty `rules` list forbids nothing. The names have to be spelled out.
+
+Second, `ForbiddenSuppress` compares the string in the annotation literally, and
+detekt accepts nine spellings of the same rule. Measured on 2.0.0-alpha.6, all of
+these silence `ReturnCount`, while `nonsense:ReturnCount` does not:
+
+```
+ReturnCount            style                    style:ReturnCount
+detekt:ReturnCount     detekt:style:ReturnCount detekt.style.ReturnCount
+detekt.ReturnCount     detekt:style.ReturnCount detekt.style:ReturnCount
+                                                style.ReturnCount
+```
+
+`detekt.yml` lists the first five forms plus the bare rule set name, for every rule
+that is `active: true` and for their aliases. That is 1385 entries.
+
+The four doubly qualified forms — `detekt` and the rule set and the rule, in any
+mix of `:` and `.` — are **not** listed and still work. They cost another ~1100
+entries, and the file then breaks the limit below. Nobody writes them by hand and
+the IDE never generates them, but they are a real hole. Look for them in review.
+
+### Regenerating the list
+
+```sh
+./tools/generate-forbidden-suppress.main.kts
+```
+
+It rewrites the `rules` list in `detekt.yml` in place and prints the new size. Run
+it after enabling or disabling any rule. It needs `kotlinr`, the Kotlin script
+runner from the compiler distribution — not the `./kotlin` wrapper in this
+repository, which is the Kotlin Toolchain CLI.
+
+> detekt parses the config with snakeyaml, which refuses a document over **102400
+> code points** and fails with a stack trace that never mentions the list. The
+> script checks the result against that limit and writes nothing if it is over.
+> The config is at 91095 as of this commit, so roughly 300 more entries fit.
+
+A second config file would lift this: detekt accepts `--config` more than once and
+merges the files, and the limit is per file. Verified on the CLI path the toolchain
+plugin uses. That is the way to list the four missing forms, at the cost of a second
+file to install and wire into Gradle.
+
+`config > checkExhaustiveness` is `true`, so a rule that a detekt upgrade adds fails
+the run until it is configured here. That is the prompt to regenerate the list.
+
+## Banned APIs
+
+`ForbiddenMethodCall` and `ForbiddenImport` ban calls that read hidden global state.
+A test cannot control them, so it cannot pin the behaviour that depends on them.
+
+- **The clock.** `System.currentTimeMillis`, `System.nanoTime`, every `now()` on a
+  `java.time` type, and `Date()`. Inject a `kotlin.time.Clock` and call `now()` on
+  it — that call resolves to the injected instance and is not banned.
+- **Randomness.** `Math.random`, `java.util.Random()`, `UUID.randomUUID`, and the
+  nine `kotlin.random.Random.Default` methods. Inject a `Random` and seed it in the
+  test.
+- **Blocking and I/O.** `Thread.sleep`, `print`, `println`.
+- **Locale.** `String.format`, and the `java.util.Date` / `Calendar` /
+  `SimpleDateFormat` imports.
+
+The bans are written against the no-arg overload where a seeded one exists, so
+`Date(0L)`, `java.util.Random(42L)` and `Random(42).nextInt()` all pass. `Math.random`
+has no seeded form and is banned outright.
+
+Deliberately not banned: `java.time.Clock.systemUTC()` and friends. Something has to
+build the clock at the composition root, and with `@Suppress` closed there would be
+no way to let it.
+
+Environment defaults — `TimeZone.getDefault`, `ZoneId.systemDefault`,
+`Locale.getDefault`, `Charset.defaultCharset` — and `System.getenv` /
+`System.getProperty` / `readln` all match if you want them; they are left out on
+purpose. Add them to the `methods` list with a `reason`.
+
+## Line length is set in 17 places
+
+`MaxLineLength` in the `style` rule set and the 16 `ktlint` rules that carry their
+own `maxLineLength` are all set to 100 by hand. They are separate properties: leave
+one at the default and the wrapping rules disagree with the line-length rule about
+where a line is too long.
+
 ## Formatting rules
 
 `detekt.yml` configures the `ktlint` rule set (called `formatting` in detekt 1.x),
