@@ -1,3 +1,5 @@
 package io.heapy.example
 
-fun greet(name: String): String = "Hello, $name"
+fun greet(
+    name: String,
+): String = "Hello, $name"

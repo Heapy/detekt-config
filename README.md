@@ -178,13 +178,16 @@ the toolchain plugin resolves it onto detekt's classpath, Gradle takes it throug
 The jar is not optional. Config validation rejects the whole `ktlint` section as an
 unknown property when it is missing, and the run fails before analyzing anything.
 
-Two rules are off, marked `# HEAPY:` in the config:
+`FunctionSignature` and `ClassSignature` are both on, both with
+`forceMultilineWhenParameterCountGreaterOrEqualThan` set to 1. Every function and
+primary-constructor parameter goes on its own line, including the only parameter of
+a one-parameter declaration. On a real hand-written module the pair produced 86 of
+99 findings — the rest of the set produced 13. Expect them to rewrite most
+signatures in an existing codebase.
 
-- `FunctionSignature`
-- `ClassSignature`
-
-Both force a particular way of wrapping signatures across lines. On a real
-hand-written module they produced 86 of 99 findings — the rest of the set produced 13.
+The two rules take that option in different types: `FunctionSignature` wants a
+number, `ClassSignature` wants a string. Quote the `ClassSignature` value or detekt
+aborts the run.
 
 Expect a large number of findings on generated code (one generated-heavy module
 produced over 13000). Exclude such directories in the config rather than fixing them,
