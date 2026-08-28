@@ -1,27 +1,7 @@
 #!/usr/bin/env bash
-# Installs the Heapy detekt setup into a repository.
-#
-#   ./install.sh [target-dir]        # target-dir defaults to the current directory
-#
-# Or straight from GitHub:
-#
-#   curl -fsSL https://raw.githubusercontent.com/Heapy/detekt-config/main/install.sh | bash
-#
-# Always installed:
-#   detekt.yml                 the shared config
-#   .detekt-config-version     commit this install came from
-#
-# Installed for Kotlin Toolchain repositories only:
-#   plugins/heapy-detekt/      the toolchain plugin, registers the 'detekt' check
-#
-# Gradle repositories need no plugin from us — detekt ships its own Gradle plugin.
-# The build system is detected from the files in the target directory; override it
-# with DETEKT_CONFIG_KIND=ktc or DETEKT_CONFIG_KIND=gradle.
-#
-# Re-run it to update. Installed files are overwritten, so keep local changes
-# out of them — send changes to the detekt-config repository instead.
-#
-# DETEKT_CONFIG_SRC=<dir> installs from a local checkout instead of GitHub.
+# Usage: ./install.sh [target-dir]
+# DETEKT_CONFIG_KIND overrides build-system detection; DETEKT_CONFIG_SRC installs
+# from a local checkout. Existing installed files are overwritten.
 set -euo pipefail
 
 REPO="${DETEKT_CONFIG_REPO:-Heapy/detekt-config}"

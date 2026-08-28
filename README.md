@@ -181,17 +181,16 @@ unknown property when it is missing, and the run fails before analyzing anything
 `FunctionSignature` and `ClassSignature` are both on, both with
 `forceMultilineWhenParameterCountGreaterOrEqualThan` set to 1. Every function and
 primary-constructor parameter goes on its own line, including the only parameter of
-a one-parameter declaration. On a real hand-written module the pair produced 86 of
-99 findings — the rest of the set produced 13. Expect them to rewrite most
-signatures in an existing codebase.
+a one-parameter declaration. Expect them to rewrite most signatures in an existing
+codebase.
 
 The two rules take that option in different types: `FunctionSignature` wants a
 number, `ClassSignature` wants a string. Quote the `ClassSignature` value or detekt
 aborts the run.
 
-Expect a large number of findings on generated code (one generated-heavy module
-produced over 13000). Exclude such directories in the config rather than fixing them,
-by adding the path to the `excludes` of the noisy rules.
+Expect a large number of findings on generated code. Exclude such directories in the
+config rather than fixing them, by adding the path to the `excludes` of the noisy
+rules.
 
 Most of these rules can fix themselves — detekt supports `--auto-correct`. Neither
 runner passes it: both are gates, and a check that rewrites files is a surprise.
