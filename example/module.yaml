@@ -1,5 +1,9 @@
 product: jvm/lib
 
+dependencies:
+  # The @HeapySuppress annotation. SOURCE retention, so nothing reaches the jar.
+  - ../the-config: compile-only
+
 plugins:
   heapy-detekt:
     enabled: true

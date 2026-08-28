@@ -1,0 +1,6 @@
+heapy:
+  active: true
+  SuppressWithoutApproval:
+    active: true
+    allowedSuppressions: []
+    allowFileLevel: false

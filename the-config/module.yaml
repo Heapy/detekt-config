@@ -1,0 +1,43 @@
+product: jvm/lib
+
+# Maven Central requires a POM description, and the toolchain takes it from here.
+description: Heapy detekt rules, the @HeapySuppress annotation and the shared configuration
+
+dependencies:
+  # compile-only keeps detekt-api out of the consumer runtime. detekt supplies it.
+  - dev.detekt:detekt-api:2.0.0-alpha.6: compile-only
+
+test-dependencies:
+  - dev.detekt:detekt-api:2.0.0-alpha.6
+  - dev.detekt:detekt-test:2.0.0-alpha.6
+
+repositories:
+  # Staging target for `./kotlin publish mavenLocal`, so a publication can be
+  # inspected and consumed locally before it reaches Central.
+  - id: mavenLocal
+    url: mavenLocal
+    publish: true
+
+# heapy-detekt is not enabled here yet: the toolchain rejects a task input that
+# sits inside the module's own root, and the config file does. Step 4 moves the
+# plugin to a classpath resource, which removes the conflict.
+
+settings:
+  jvm:
+    release: 17
+  publishing:
+    # Signing and the Central upload live in scripts/release.sh, not here: enabling
+    # them here would demand a PGP key for every `publish mavenLocal` as well.
+    enabled: true
+    group: io.heapy.detekt
+    artifactId: the-config
+    version: 0.1.0
+    publishSources: true
+    pom:
+      url: https://github.com/Heapy/detekt-config
+      scm: https://github.com/Heapy/detekt-config.git
+      developers:
+        - name: Ruslan Ibrahimau
+      licenses:
+        - name: The Apache License, Version 2.0
+          url: https://www.apache.org/licenses/LICENSE-2.0.txt
