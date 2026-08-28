@@ -1,4 +1,8 @@
 product: jvm/lib
 
 plugins:
-  heapy-detekt: enabled
+  heapy-detekt:
+    enabled: true
+    # This repository has no root detekt.yml: the config lives in the module that
+    # ships it. Consumers keep the default, which is the project root.
+    configFile: //the-config/resources/heapy/detekt.yml

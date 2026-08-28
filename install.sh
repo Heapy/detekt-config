@@ -63,14 +63,14 @@ fi
 SHORT="${SHA:0:12}"
 case "$SHA" in *-dirty) SHORT="$SHORT-dirty" ;; esac
 
-for f in detekt.yml plugins/heapy-detekt; do
+for f in the-config/resources/heapy/detekt.yml plugins/heapy-detekt; do
     if [ ! -e "$SRC/$f" ]; then
         echo "ERROR: $f missing in the source tree, install aborted" >&2
         exit 1
     fi
 done
 
-install -m 644 "$SRC/detekt.yml" "$TARGET/detekt.yml"
+install -m 644 "$SRC/the-config/resources/heapy/detekt.yml" "$TARGET/detekt.yml"
 INSTALLED="  detekt.yml"
 
 if [ "$KIND" = ktc ]; then

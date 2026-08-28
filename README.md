@@ -3,7 +3,7 @@
 Shared [detekt](https://detekt.dev) configuration for all Heapy repositories.
 
 - Target detekt version: **2.0.0-alpha.6**
-- [`detekt.yml`](detekt.yml) — the config. Self-contained, based on the generated
+- [`the-config/resources/heapy/detekt.yml`](the-config/resources/heapy/detekt.yml) — the config. Self-contained, based on the generated
   default config of the target detekt version, plus the `ktlint` formatting rules.
   Every deviation from the default is marked with a `# HEAPY:` comment.
 - [`plugins/heapy-detekt`](plugins/heapy-detekt) — Kotlin Toolchain plugin. Registers

@@ -7,6 +7,8 @@
  *
  * Usage:
  *   ./tools/generate-forbidden-suppress.main.kts [path/to/detekt.yml]
+ *
+ * Defaults to this repository's copy, the-config/resources/heapy/detekt.yml.
  */
 
 import java.nio.file.Path
@@ -15,7 +17,7 @@ import kotlin.io.path.readLines
 import kotlin.io.path.writeText
 import kotlin.system.exitProcess
 
-val configPath: Path = Path(args.firstOrNull() ?: "detekt.yml")
+val configPath: Path = Path(args.firstOrNull() ?: "the-config/resources/heapy/detekt.yml")
 val lines = runCatching { configPath.readLines() }.getOrElse {
     System.err.println("Cannot read $configPath: ${it.message}")
     exitProcess(1)
