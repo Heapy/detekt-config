@@ -4,11 +4,6 @@ dependencies:
   # The @HeapySuppress annotation. SOURCE retention, so nothing reaches the jar.
   - ../the-config: compile-only
 
-repositories:
-  # TEMPORARY: until io.heapy.detekt:the-config:0.1.0 is on Central.
-  - id: mavenLocal
-    url: mavenLocal
-
 plugins:
   heapy-detekt:
     enabled: true
