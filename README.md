@@ -85,7 +85,7 @@ it with `./kotlin update` — never by editing the version by hand.
 
 ### What the plugin sees
 
-Source directories come from two places:
+Source directories come from three places:
 
 1. `module.kotlinJavaSources` — the toolchain's own answer. It respects the module
    layout (`amper` and `maven-like` both work) and covers main common and JVM
@@ -93,13 +93,40 @@ Source directories come from two places:
 2. Every `src@*` directory in the module root. `kotlinJavaSources` does not report
    native, JS or Wasm fragments, and 0.12.0 exposes no reference that does, so the
    plugin picks them up by name.
+3. Test sources by name: `test`, every `test@*` fragment, and `src/test/kotlin` and
+   `src/test/java` for the `maven-like` layout. `testResources` is not matched.
 
-The two are merged and de-duplicated, so a fragment reported by both is analyzed
-once. The toolchain docs list multiplatform source directories in `ModuleSources` as
-"coming soon"; when that lands, step 2 stops finding anything new and can be dropped.
+The three are merged and de-duplicated, so a fragment reported by more than one is
+analyzed once. The toolchain docs list multiplatform source directories in
+`ModuleSources` as "coming soon"; when that lands, step 2 stops finding anything new
+and can be dropped.
 
-Test sources are not covered. `src@*` never matches `test`, `test@jvm` or
-`src/test/kotlin`.
+### Test sources are analyzed with the main classpath
+
+`ModuleDataForPlugin` in 0.12.0 offers `name`, `rootDir`, `compileClasspath`,
+`runtimeClasspath`, `kotlinJavaSources`, `resources`, `jar`, `classes`, `self` and
+`settings`. Every one of them is a main-source reference. There is no test
+classpath to ask for, so the plugin hands detekt the main one for the whole module.
+
+The consequence is a line on every run of a module that has tests:
+
+```
+There were N compiler errors found during analysis. This affects accuracy of reporting.
+```
+
+Those errors are the test framework: `kotlin.test`, JUnit and any test-only
+dependency do not resolve. What this costs:
+
+- Rules that do not need types work normally on test code. `ForbiddenMethodCall`,
+  `MagicNumber` and the formatting rules all report.
+- Rules that need types work where the type resolves from the main classpath or the
+  stdlib. `UnsafeCallOnNullableType` reports a `!!` on a local `String?` in a test.
+- Where a type comes from the test framework, a type-resolution rule finds nothing
+  and says nothing. Do not read a clean test file as a checked test file.
+
+Gradle does not have this problem: `detektTest` is a separate task with the test
+compile classpath. Drop step 3 and this section once the toolchain exposes a test
+classpath reference.
 
 ## Gradle repositories
 

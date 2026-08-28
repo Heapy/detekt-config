@@ -33,6 +33,20 @@ fun runDetekt(
         // and this loop adds nothing.
         moduleRootDir.listDirectoryEntries("src@*")
             .forEach { if (it.isDirectory()) add(it.toRealPath()) }
+        // Test sources, by name for the same reason. ModuleDataForPlugin in 0.12.0
+        // exposes kotlinJavaSources, resources, jar, classes, compileClasspath,
+        // runtimeClasspath, rootDir, name, self and settings. All of them are main
+        // sources; there is no test equivalent to ask for.
+        // 'test' and its platform fragments, but not 'testResources'.
+        listOf("test", "test@*").forEach { glob ->
+            moduleRootDir.listDirectoryEntries(glob)
+                .forEach { if (it.isDirectory()) add(it.toRealPath()) }
+        }
+        // The maven-like layout, which the amper glob above does not reach.
+        listOf("kotlin", "java").forEach {
+            val dir = moduleRootDir / "src" / "test" / it
+            if (dir.isDirectory()) add(dir.toRealPath())
+        }
     }
     if (inputDirs.isEmpty()) {
         println("No source directories, skipping detekt")
