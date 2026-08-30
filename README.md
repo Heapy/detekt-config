@@ -1,6 +1,12 @@
 # Heapy Detekt Configuration
 
-Shared [detekt](https://detekt.dev) configuration for all Heapy repositories.
+Shared [detekt](https://detekt.dev) configuration and rules for Heapy Kotlin
+repositories. It gives Gradle and Kotlin Toolchain builds one pinned analysis and
+formatting policy. Its custom rule also closes detekt's `@Suppress` escape hatch:
+every non-allowlisted suppression needs a documented `@HeapySuppress` approval.
+
+Use it in repositories that build with Gradle or Kotlin Toolchain and should enforce
+the same checks locally and in CI.
 
 - Target detekt version: **2.0.0-alpha.6**
 - [`the-config`](the-config) — published as `io.heapy.detekt:the-config`. Carries the
@@ -13,18 +19,43 @@ Shared [detekt](https://detekt.dev) configuration for all Heapy repositories.
   a `detekt` check.
 - [`install.sh`](install.sh) — installs the plugin and prints the wiring.
 
-Gradle uses detekt's own plugin; Kotlin Toolchain uses ours. There is no standalone
-runner. Consumers load `heapy/detekt.yml` from `io.heapy.detekt:the-config`; the
-installer never copies the config into their repositories.
+Gradle uses detekt's own plugin; Kotlin Toolchain uses ours. Consumers load
+`heapy/detekt.yml` from `io.heapy.detekt:the-config`; the installer never copies the
+config into their repositories.
 
-## Install
+## Status and requirements
+
+This project is **pre-1.0**: `the-config` is currently version `0.1.0` and targets
+detekt `2.0.0-alpha.6`. Compatibility is deliberately version-specific; upgrade the
+artifact, detekt and the formatting plugin together rather than assuming compatibility
+across detekt alpha releases.
+
+Supported integrations and requirements:
+
+- Gradle with detekt's Gradle plugin. The published artifact targets JVM 17, so use
+  JDK 17 or newer; the CI example below uses JDK 21.
+- Kotlin Toolchain 0.12.x. The checked-in wrappers pin 0.12.0 and provision the
+  toolchain on first use.
+- Bash, Git, `curl` and `tar` to run the installer.
+
+There is no standalone runner.
+
+## Quick start
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/Heapy/detekt-config/main/install.sh | bash
 ```
 
-Run it from the root of the target repository, or pass the directory:
-`./install.sh path/to/repo`.
+Run it from the root of the target repository. To install from a local checkout into
+another repository, run `./install.sh path/to/repo`.
+
+The installer detects the build system and prints the required wiring. Apply it, then
+run the matching check:
+
+| Build system | First check | Detailed setup |
+|---|---|---|
+| Kotlin Toolchain | `./kotlin check detekt` | [Kotlin Toolchain repositories](#kotlin-toolchain-repositories) |
+| Gradle | `./gradlew detektMain` | [Gradle repositories](#gradle-repositories) |
 
 In a Kotlin Toolchain repository it installs `plugins/heapy-detekt/`; the directory's
 `.detekt-config-version` records its repository, ref and commit. In a Gradle repository
@@ -38,23 +69,6 @@ script prints the wiring for what it found.
 
 Re-run the same command to update. Installed files are overwritten, so do not edit
 them in the consumer repository — change them here and re-install.
-
-## Versioning
-
-The **config and rules** are `io.heapy.detekt:the-config`, an ordinary Maven Central
-dependency with a semantic version. Bump it like any other dependency.
-
-The **toolchain plugin** is versioned by commit. The toolchain does not support
-publishing plugins
-([reference](https://github.com/JetBrains/kotlin-toolchain/blob/main/docs/src/reference/project.md):
-*"only dependencies on local plugin modules are supported"*), so it has to live
-inside each repository. `plugins/heapy-detekt/.detekt-config-version` records its
-origin; the resolved artifact version remains authoritative in `plugin.yaml`.
-
-Versions are pinned in `plugins/heapy-detekt/plugin.yaml`, `DETEKT_VERSION` and
-`THE_CONFIG_VERSION` in `install.sh`, and consumer Gradle build files. `install.sh`
-resolves the commit before downloading and refuses to run when its versions differ
-from `plugin.yaml`.
 
 ## Kotlin Toolchain repositories
 
@@ -85,9 +99,6 @@ plugins:
     enabled: true
     configOverride: //config/detekt-override.yml
 ```
-
-> **Migration:** `configFile` was replaced by `configOverride`. Existing `configFile`
-> settings fail fast; rename the key and retain only overridden values.
 
 To write `@HeapySuppress` in production code, add the artifact to that module:
 
@@ -198,6 +209,23 @@ jobs:
       - run: ./gradlew detektMain      # or: ./kotlin check detekt
 ```
 
+## Versioning
+
+The **config and rules** are `io.heapy.detekt:the-config`, an ordinary Maven Central
+dependency with a semantic version. Bump it like any other dependency.
+
+The **toolchain plugin** is versioned by commit. The toolchain does not support
+publishing plugins
+([reference](https://github.com/JetBrains/kotlin-toolchain/blob/main/docs/src/reference/project.md):
+*"only dependencies on local plugin modules are supported"*), so it has to live
+inside each repository. `plugins/heapy-detekt/.detekt-config-version` records its
+origin; the resolved artifact version remains authoritative in `plugin.yaml`.
+
+Versions are pinned in `plugins/heapy-detekt/plugin.yaml`, `DETEKT_VERSION` and
+`THE_CONFIG_VERSION` in `install.sh`, and consumer Gradle build files. `install.sh`
+resolves the commit before downloading and refuses to run when its versions differ
+from `plugin.yaml`.
+
 ## Analysis mode
 
 Both build systems run **full analysis**, where detekt gets the module's compile
@@ -214,7 +242,7 @@ check passes, so the plugin starts detekt as a **separate process**. That is why
 `plugin.yaml` resolves `dev.detekt:detekt-cli` itself instead of the plugin module
 depending on it.
 
-## No escape hatches
+## Suppression policy: no escape hatches
 
 `@Suppress("SomeRule")` turns a rule off for one declaration, and nothing in the
 config sees it happen. This is the one thing the whole repository exists to close.
@@ -317,3 +345,39 @@ rules.
 
 Most of these rules can fix themselves — detekt supports `--auto-correct`. Neither
 runner passes it: both are gates, and a check that rewrites files is a surprise.
+
+## Development and contributing
+
+The repository uses its checked-in Kotlin Toolchain wrapper. On the first run it
+downloads the pinned toolchain distribution; after that, run the complete verification
+before proposing a change:
+
+```sh
+./kotlin check
+```
+
+When changing the project:
+
+- Keep `the-config/resources/heapy/detekt.yml` self-contained and mark every
+  non-default setting with a `# HEAPY:` comment.
+- Add or update tests under `the-config/test` for custom-rule behavior.
+- Keep detekt and artifact versions synchronized as described in
+  [Versioning](#versioning).
+- Exercise integration behavior through the `example` module when a change affects
+  source discovery, type resolution or plugin wiring.
+
+Maintainer releases use [`scripts/release.sh`](scripts/release.sh). It publishes to
+Maven Local, signs and bundles the artifacts, and can upload a user-managed Maven
+Central deployment. The required release credentials are documented at the top of
+the script and must stay outside version control.
+
+## Support
+
+Report bugs and compatibility problems in
+[GitHub Issues](https://github.com/Heapy/detekt-config/issues). Include the build
+system, detekt and config versions, the failing command and a minimal reproducer when
+possible.
+
+## License
+
+Licensed under the [Apache License 2.0](LICENSE).
