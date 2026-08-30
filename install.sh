@@ -88,10 +88,10 @@ if [ -f "$TARGET/detekt.yml" ]; then
     rm -f "$TARGET/detekt.yml"
     REMOVED="  detekt.yml (the config is a dependency now)"
 fi
-if [ "$KIND" != ktc ] && [ -f "$TARGET/.detekt-config-version" ]; then
+if [ -f "$TARGET/.detekt-config-version" ]; then
     rm -f "$TARGET/.detekt-config-version"
     REMOVED="$REMOVED
-  .detekt-config-version (nothing is installed here any more)"
+  .detekt-config-version (legacy root stamp)"
 fi
 
 INSTALLED=""
@@ -99,15 +99,12 @@ if [ "$KIND" = ktc ]; then
     mkdir -p "$TARGET/plugins"
     rm -rf "$TARGET/plugins/heapy-detekt"
     cp -R "$SRC/plugins/heapy-detekt" "$TARGET/plugins/heapy-detekt"
-    cat > "$TARGET/.detekt-config-version" <<EOF
+    cat > "$TARGET/plugins/heapy-detekt/.detekt-config-version" <<EOF
 repository=$ORIGIN
 ref=$REF
 commit=$SHA
-kind=$KIND
-the_config=$THE_CONFIG_VERSION
 EOF
-    INSTALLED="  plugins/heapy-detekt/
-  .detekt-config-version"
+    INSTALLED="  plugins/heapy-detekt/"
 fi
 
 echo

@@ -26,10 +26,10 @@ curl -fsSL https://raw.githubusercontent.com/Heapy/detekt-config/main/install.sh
 Run it from the root of the target repository, or pass the directory:
 `./install.sh path/to/repo`.
 
-In a Kotlin Toolchain repository it installs `plugins/heapy-detekt/` and a
-`.detekt-config-version` stamp naming the commit it came from. In a Gradle repository
-it installs nothing at all and only prints the build snippet: the Gradle plugin and
-the config both come from Maven Central.
+In a Kotlin Toolchain repository it installs `plugins/heapy-detekt/`; the directory's
+`.detekt-config-version` records its repository, ref and commit. In a Gradle repository
+the installer only prints the build snippet because both dependencies come from Maven
+Central.
 
 The build system is detected from the target directory — `project.yaml` or
 `module.yaml` means toolchain, `build.gradle.kts` and friends mean Gradle. Override
@@ -48,8 +48,8 @@ The **toolchain plugin** is versioned by commit. The toolchain does not support
 publishing plugins
 ([reference](https://github.com/JetBrains/kotlin-toolchain/blob/main/docs/src/reference/project.md):
 *"only dependencies on local plugin modules are supported"*), so it has to live
-inside each repository. `.detekt-config-version` records which commit it came from
-and which artifact version it resolves.
+inside each repository. `plugins/heapy-detekt/.detekt-config-version` records its
+origin; the resolved artifact version remains authoritative in `plugin.yaml`.
 
 Versions are pinned in `plugins/heapy-detekt/plugin.yaml`, `DETEKT_VERSION` and
 `THE_CONFIG_VERSION` in `install.sh`, and consumer Gradle build files. `install.sh`
