@@ -2,7 +2,6 @@
 # Base: default config of detekt 2.0.0-alpha.6 (detekt-cli --generate-config),
 # plus the 'ktlint' formatting rules from detekt-rules-ktlint-wrapper.
 # Every deviation from the default is marked with a "# HEAPY:" comment.
-# Installed by install.sh from Heapy/detekt-config; do not edit in place.
 
 config:
   validation: true

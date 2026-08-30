@@ -1,25 +1,12 @@
 #!/usr/bin/env bash
-# Builds a Maven Central deployment bundle for io.heapy.detekt:the-config: publishes it
-# into the local Maven repository, stages that tree in Maven layout, adds checksums and
-# PGP signatures, and zips the result into build/the-config-<version>.zip.
+# Builds build/the-config-<version>.zip for a manual Maven Central release.
+# --upload creates a USER_MANAGED deployment but does not release it.
 #
-# The zip is only produced, never uploaded. Upload it in the Central Portal UI, or pass
-# --upload to POST it as a USER_MANAGED deployment (Central validates it and waits for
-# you to release it manually — nothing goes public until you press the button).
+# Toolchain-side Central publishing forces signing onto `publish mavenLocal`, so
+# signing and upload stay here to keep credentials out of ordinary builds.
 #
-# The toolchain can upload to Central on its own (`mavenCentral: enabled` + `./kotlin
-# publish mavenCentral`), but that combination forces `signArtifacts: true` onto *every*
-# publication of the module, including the `publish mavenLocal` that the local
-# verification loop depends on. Signing here instead keeps a PGP key out of the
-# everyday build.
-#
-# Environment:
-#   GPG_KEY_ID       key id or fingerprint to sign with (required)
-#   GPG_PASSPHRASE   passphrase for that key (optional if gpg-agent already holds it)
-#   CENTRAL_TOKEN    "<username>:<password>" Central Portal user token (for --upload)
-#
-# Credentials belong in the git-ignored ./publish.sh wrapper, which exports them and
-# calls this.
+# GPG_KEY_ID is required. GPG_PASSPHRASE is optional when gpg-agent has the key.
+# CENTRAL_TOKEN is required for --upload. Put credentials in ignored ./publish.sh.
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -63,12 +50,9 @@ find "$maven_local/$group_path/$module/$version" -maxdepth 1 -type f \
 echo "==> signing and checksumming"
 gpg_args=(--yes --armor --detach-sign --local-user "$GPG_KEY_ID")
 if [ -n "${GPG_PASSPHRASE:-}" ]; then
-  # Non-interactive: the passphrase goes straight to gpg, no agent prompt involved.
   gpg_args=(--batch --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" "${gpg_args[@]}")
 else
-  # Interactive: pinentry asks once and gpg-agent caches it for the remaining files.
-  # Without GPG_TTY it cannot find a terminal and fails with "Inappropriate ioctl for
-  # device"; with --batch it would not be allowed to ask at all, hence neither is used.
+  # GPG_TTY lets pinentry find the terminal; --batch would forbid the prompt.
   tty -s || { echo "no terminal for the gpg passphrase prompt: set GPG_PASSPHRASE" >&2; exit 1; }
   GPG_TTY="$(tty)"
   export GPG_TTY

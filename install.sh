@@ -82,9 +82,7 @@ for coordinate in "dev.detekt:detekt-cli:$DETEKT_VERSION" \
     fi
 done
 
-# Earlier versions copied detekt.yml into the target. Leaving it behind is worse than
-# deleting it: a build file still pointing at that file lints against a frozen config
-# and says nothing.
+# A leftover detekt.yml can silently keep a consumer on a frozen config.
 REMOVED=""
 if [ -f "$TARGET/detekt.yml" ]; then
     rm -f "$TARGET/detekt.yml"

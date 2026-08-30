@@ -5,9 +5,7 @@ tasks:
       compileClasspath: ${module.compileClasspath}
       detektClasspath:
         - dev.detekt:detekt-cli:2.0.0-alpha.6
-        # Formatting rules. detekt finds them on the classpath, no --plugins needed.
         - dev.detekt:detekt-rules-ktlint-wrapper:2.0.0-alpha.6
-        # The 'heapy' rule set and the config itself, read as /heapy/detekt.yml.
         - io.heapy.detekt:the-config:0.1.0
       moduleRootDir: ${module.rootDir}
       jvmTarget: ${module.settings.jvm.release}

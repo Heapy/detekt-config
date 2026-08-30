@@ -101,8 +101,6 @@ class ForbiddenSuppressTest {
      * The whole gate rests on this: detekt hard-codes every rule named
      * `ForbiddenSuppress` as un-silenceable, whatever rule set it belongs to. If a
      * detekt upgrade drops that, this test fails and the gate is open again.
-     *
-     * The findings are two: one for each `@Suppress` in the sample.
      */
     @Test
     fun theRuleItselfCannotBeSuppressed() = assertEquals(

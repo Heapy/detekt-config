@@ -13,12 +13,9 @@ Shared [detekt](https://detekt.dev) configuration for all Heapy repositories.
   a `detekt` check.
 - [`install.sh`](install.sh) — installs the plugin and prints the wiring.
 
-Heapy uses two build systems, and both run detekt through a plugin: Gradle through
-detekt's own Gradle plugin, the Kotlin Toolchain through ours. There is no
-standalone runner script.
-
-The config is **not** copied into consumer repositories any more. It travels inside
-`io.heapy.detekt:the-config`, read from the jar at `heapy/detekt.yml`.
+Gradle uses detekt's own plugin; Kotlin Toolchain uses ours. There is no standalone
+runner. Consumers load `heapy/detekt.yml` from `io.heapy.detekt:the-config`; the
+installer never copies the config into their repositories.
 
 ## Install
 
@@ -44,8 +41,6 @@ them in the consumer repository — change them here and re-install.
 
 ## Versioning
 
-Two things version separately.
-
 The **config and rules** are `io.heapy.detekt:the-config`, an ordinary Maven Central
 dependency with a semantic version. Bump it like any other dependency.
 
@@ -56,9 +51,10 @@ publishing plugins
 inside each repository. `.detekt-config-version` records which commit it came from
 and which artifact version it resolves.
 
-`install.sh` resolves the commit before downloading, so an install never picks up a
-half-pushed branch state. It also refuses to run when its own version numbers no
-longer match what `plugin.yaml` resolves.
+Versions are pinned in `plugins/heapy-detekt/plugin.yaml`, `DETEKT_VERSION` and
+`THE_CONFIG_VERSION` in `install.sh`, and consumer Gradle build files. `install.sh`
+resolves the commit before downloading and refuses to run when its versions differ
+from `plugin.yaml`.
 
 ## Kotlin Toolchain repositories
 
@@ -80,9 +76,6 @@ plugins:
 
 Run `./kotlin check detekt`, or plain `./kotlin check` to run it with the tests.
 
-The check compiles the module first, because full analysis needs its compile
-classpath. See [Analysis mode](#analysis-mode).
-
 The plugin reads the config out of the jar. To change a few keys, point
 `configOverride` at a partial config; detekt merges it on top, last file wins:
 
@@ -93,13 +86,8 @@ plugins:
     configOverride: //config/detekt-override.yml
 ```
 
-> **Breaking change.** The old setting was `configFile`, and it *replaced* the shared
-> config. That is gone. A repository that still sets `configFile:` fails with a
-> settings error on the next build; rename it and keep only the keys you change.
-
-`--config` makes detekt ignore `--config-resource` entirely, so with an override the
-plugin extracts the base config from the jar into the task output directory first and
-passes two `--config` files.
+> **Migration:** `configFile` was replaced by `configOverride`. Existing `configFile`
+> settings fail fast; rename the key and retain only overridden values.
 
 To write `@HeapySuppress` in production code, add the artifact to that module:
 
@@ -154,8 +142,8 @@ compile classpath.
 
 ## Gradle repositories
 
-Detekt ships its own Gradle plugin, so nothing is needed from this repository at all.
-Add to `build.gradle.kts`:
+Use detekt's Gradle plugin directly; `install.sh` only prints this wiring. Add to
+`build.gradle.kts`:
 
 ```kotlin
 plugins {
@@ -226,20 +214,13 @@ check passes, so the plugin starts detekt as a **separate process**. That is why
 `plugin.yaml` resolves `dev.detekt:detekt-cli` itself instead of the plugin module
 depending on it.
 
-> Versions are pinned in three places: the coordinates in
-> `plugins/heapy-detekt/plugin.yaml`, `DETEKT_VERSION` and `THE_CONFIG_VERSION` in
-> `install.sh` (they feed the Gradle snippet it prints), and each Gradle build file.
-> `install.sh` checks itself against `plugin.yaml` and refuses to run when they drift.
-
 ## No escape hatches
 
 `@Suppress("SomeRule")` turns a rule off for one declaration, and nothing in the
 config sees it happen. This is the one thing the whole repository exists to close.
 
-A list of forbidden suppression strings cannot close it. detekt strips the `detekt`
-prefix with `Regex("detekt[.:]", IGNORE_CASE)`, replacing **every** occurrence, then
-compares what is left. So `all`, `ALL`, `DETEKT:all`, `Detekt.ALL` and
-`detekt:detekt:ReturnCount` all work, and the set of working spellings is infinite.
+A finite list of forbidden suppression strings cannot close it: detekt accepts case
+variants and strips repeated `detekt` prefixes, leaving infinitely many spellings.
 `style > ForbiddenSuppress` is therefore turned **off** in this config.
 
 What closes it is a rule that looks at the **annotation type**, not the string:
@@ -268,17 +249,9 @@ string literal. A non-literal argument is never allowed.
 
 ### Why the rule is called ForbiddenSuppress
 
-Because detekt hard-codes it. `isSuppressedBy` starts with
-`if (isForbiddenSuppressById(id)) return false`, and that check extracts the **rule
-name** and compares it to `ForbiddenSuppress` — the rule set is not part of the
-comparison. So any rule with that name is un-silenceable, whatever set it ships in.
-
-That is what makes the gate hold: no `@Suppress` string, `DETEKT:all` included, can
-turn this rule off. Verified by running detekt, not by reading docs.
-
-> This is an undocumented detail of detekt 2.0.0-alpha.6. `ForbiddenSuppressTest`
-> pins it: if an upgrade drops the hard-coding, that test fails and the gate is open
-> again.
+Detekt hard-codes every rule named `ForbiddenSuppress` as un-silenceable, regardless
+of its rule set. This undocumented 2.0.0-alpha.6 behavior is pinned by
+`ForbiddenSuppressTest`; if it changes, the test fails.
 
 The trade-off is the name clash in reports: both this rule and the disabled
 `style > ForbiddenSuppress` print as `[ForbiddenSuppress]`. Only one of them runs.
@@ -288,39 +261,29 @@ The trade-off is the name clash in reports: both this rule and the disabled
 **As soon as `detekt.yml` names the `heapy` section, `io.heapy.detekt:the-config`
 must be on detekt's classpath in every consumer, Gradle included.** Without it,
 config validation rejects `heapy` as an unknown property and the run dies before
-analyzing anything. Exactly the same trap this README describes for the ktlint
-wrapper.
+analyzing anything.
 
 `config > checkExhaustiveness` is `true`, so a rule that a detekt upgrade adds fails
 the run until it is configured here.
 
 ## Banned APIs
 
-`ForbiddenMethodCall` and `ForbiddenImport` ban calls that read hidden global state.
-A test cannot control them, so it cannot pin the behaviour that depends on them.
-
-- **The clock.** `System.currentTimeMillis`, `System.nanoTime`, every `now()` on a
-  `java.time` type, and `Date()`. Inject a `kotlin.time.Clock` and call `now()` on
-  it — that call resolves to the injected instance and is not banned.
-- **Randomness.** `Math.random`, `java.util.Random()`, `UUID.randomUUID`, and the
-  nine `kotlin.random.Random.Default` methods. Inject a `Random` and seed it in the
-  test.
-- **Blocking and I/O.** `Thread.sleep`, `print`, `println`.
-- **Locale.** `String.format`, and the `java.util.Date` / `Calendar` /
-  `SimpleDateFormat` imports.
+`ForbiddenMethodCall` and `ForbiddenImport` ban APIs that read hidden global state,
+making their behavior difficult to pin in tests. The authoritative lists and reasons
+live in [`detekt.yml`](the-config/resources/heapy/detekt.yml); they cover clocks,
+randomness, blocking console I/O and locale-sensitive formatting.
 
 The bans are written against the no-arg overload where a seeded one exists, so
 `Date(0L)`, `java.util.Random(42L)` and `Random(42).nextInt()` all pass. `Math.random`
 has no seeded form and is banned outright.
 
-Deliberately not banned: `java.time.Clock.systemUTC()` and friends. Something has to
-build the clock at the composition root. Everything else on the list can be allowed
-one call at a time with `@HeapySuppress` plus `@Suppress`.
+System clock factories remain available at the composition root. Other banned calls
+can be approved individually with `@HeapySuppress` plus `@Suppress`.
 
 Environment defaults — `TimeZone.getDefault`, `ZoneId.systemDefault`,
 `Locale.getDefault`, `Charset.defaultCharset` — and `System.getenv` /
-`System.getProperty` / `readln` all match if you want them; they are left out on
-purpose. Add them to the `methods` list with a `reason`.
+`System.getProperty` / `readln` are deliberately not banned. Add them to the
+`methods` list with a `reason` if that policy changes.
 
 ## Line length must stay synchronized
 
@@ -331,10 +294,9 @@ line is too long.
 
 ## Formatting rules
 
-`detekt.yml` configures the `ktlint` rule set (called `formatting` in detekt 1.x),
-which comes from `dev.detekt:detekt-rules-ktlint-wrapper`. Both build systems load it:
-the toolchain plugin resolves it onto detekt's classpath, Gradle takes it through
-`detektPlugins`.
+`detekt.yml` configures the `ktlint` rule set from
+`dev.detekt:detekt-rules-ktlint-wrapper`. The toolchain plugin resolves it onto
+detekt's classpath; Gradle takes it through `detektPlugins`.
 
 The jar is not optional. Config validation rejects the whole `ktlint` section as an
 unknown property when it is missing, and the run fails before analyzing anything.
