@@ -50,10 +50,10 @@ class ForbiddenSuppressConfigTest {
     fun fileLevelSuppressIsReportedEvenWithAnApproval() = assertTrue(
         findings(
             """
-            @file:HeapySuppress("$REASON")
+            @file:AllowSuppress("$REASON")
             @file:Suppress("MagicNumber")
 
-            import io.heapy.detekt.HeapySuppress
+            import io.heapy.detekt.AllowSuppress
 
             fun f() = 42
             """.trimIndent(),
@@ -65,10 +65,10 @@ class ForbiddenSuppressConfigTest {
         expected = emptyList(),
         actual = findings(
             code = """
-            @file:HeapySuppress("$REASON")
+            @file:AllowSuppress("$REASON")
             @file:Suppress("MagicNumber")
 
-            import io.heapy.detekt.HeapySuppress
+            import io.heapy.detekt.AllowSuppress
 
             fun f() = 42
             """.trimIndent(),

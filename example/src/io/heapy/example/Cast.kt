@@ -1,8 +1,8 @@
 package io.heapy.example
 
-import io.heapy.detekt.HeapySuppress
+import io.heapy.detekt.AllowSuppress
 
-@HeapySuppress("Third-party API returns a raw type.")
+@AllowSuppress("Third-party API returns a raw type.")
 @Suppress("UNCHECKED_CAST")
 fun <T> cast(
     value: Any,

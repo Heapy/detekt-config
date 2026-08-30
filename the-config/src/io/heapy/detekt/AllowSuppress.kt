@@ -21,6 +21,6 @@ package io.heapy.detekt
     AnnotationTarget.FILE,
 )
 @Retention(AnnotationRetention.SOURCE)
-annotation class HeapySuppress(
+annotation class AllowSuppress(
     val reason: String,
 )

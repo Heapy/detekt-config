@@ -3,14 +3,14 @@
 Shared [detekt](https://detekt.dev) configuration and rules for Heapy Kotlin
 repositories. It gives Gradle and Kotlin Toolchain builds one pinned analysis and
 formatting policy. Its custom rule also closes detekt's `@Suppress` escape hatch:
-every non-allowlisted suppression needs a documented `@HeapySuppress` approval.
+every non-allowlisted suppression needs a documented `@AllowSuppress` approval.
 
 Use it in repositories that build with Gradle or Kotlin Toolchain and should enforce
 the same checks locally and in CI.
 
 - Target detekt version: **2.0.0-alpha.6**
 - [`the-config`](the-config) — published as `io.heapy.detekt:the-config`. Carries the
-  config, the `heapy` rule set and the `@HeapySuppress` annotation.
+  config, the `heapy` rule set and the `@AllowSuppress` annotation.
 - [`the-config/resources/heapy/detekt.yml`](the-config/resources/heapy/detekt.yml) —
   the config. Self-contained, based on the generated default config of the target
   detekt version, plus the `ktlint` formatting rules. Every deviation from the default
@@ -25,7 +25,7 @@ config into their repositories.
 
 ## Status and requirements
 
-This project is **pre-1.0**: `the-config` is currently version `0.1.0` and targets
+This project is **pre-1.0**: `the-config` is currently version `0.2.0` and targets
 detekt `2.0.0-alpha.6`. Compatibility is deliberately version-specific; upgrade the
 artifact, detekt and the formatting plugin together rather than assuming compatibility
 across detekt alpha releases.
@@ -100,11 +100,11 @@ plugins:
     configOverride: //config/detekt-override.yml
 ```
 
-To write `@HeapySuppress` in production code, add the artifact to that module:
+To write `@AllowSuppress` in production code, add the artifact to that module:
 
 ```yaml
 dependencies:
-  - io.heapy.detekt:the-config:0.1.0: compile-only
+  - io.heapy.detekt:the-config:0.2.0: compile-only
 ```
 
 The plugin targets toolchain **0.12.x**. The `kotlin` / `kotlin.bat` wrappers in this
@@ -168,10 +168,10 @@ dependencies {
     // Mandatory: the config names the ktlint and heapy rule sets, and config
     // validation fails when a rule set is not on the classpath.
     detektPlugins("dev.detekt:detekt-rules-ktlint-wrapper:2.0.0-alpha.6")
-    detektPlugins("io.heapy.detekt:the-config:0.1.0")
-    detektConfig("io.heapy.detekt:the-config:0.1.0")
-    // Only if production code uses @HeapySuppress:
-    compileOnly("io.heapy.detekt:the-config:0.1.0")
+    detektPlugins("io.heapy.detekt:the-config:0.2.0")
+    detektConfig("io.heapy.detekt:the-config:0.2.0")
+    // Only if production code uses @AllowSuppress:
+    compileOnly("io.heapy.detekt:the-config:0.2.0")
 }
 
 detekt {
@@ -254,14 +254,14 @@ variants and strips repeated `detekt` prefixes, leaving infinitely many spelling
 What closes it is a rule that looks at the **annotation type**, not the string:
 
 ```kotlin
-@HeapySuppress("Third-party API returns a raw type.")
+@AllowSuppress("Third-party API returns a raw type.")
 @Suppress("UNCHECKED_CAST")
 fun <T> cast(
     value: Any,
 ): T = value as T
 ```
 
-`heapy > ForbiddenSuppress` reports every `@Suppress` that has no `@HeapySuppress`
+`heapy > ForbiddenSuppress` reports every `@Suppress` that has no `@AllowSuppress`
 **on the same declaration**, with a reason of at least 10 characters. The reason
 length is not configurable.
 
@@ -306,7 +306,7 @@ The bans are written against the no-arg overload where a seeded one exists, so
 has no seeded form and is banned outright.
 
 System clock factories remain available at the composition root. Other banned calls
-can be approved individually with `@HeapySuppress` plus `@Suppress`.
+can be approved individually with `@AllowSuppress` plus `@Suppress`.
 
 Environment defaults — `TimeZone.getDefault`, `ZoneId.systemDefault`,
 `Locale.getDefault`, `Charset.defaultCharset` — and `System.getenv` /
@@ -349,10 +349,12 @@ runner passes it: both are gates, and a check that rewrites files is a surprise.
 ## Development and contributing
 
 The repository uses its checked-in Kotlin Toolchain wrapper. On the first run it
-downloads the pinned toolchain distribution; after that, run the complete verification
-before proposing a change:
+downloads the pinned toolchain distribution. The plugin resolves the versioned
+artifact, so stage the candidate in Maven Local before running the complete
+verification:
 
 ```sh
+./kotlin publish mavenLocal -m the-config
 ./kotlin check
 ```
 

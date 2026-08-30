@@ -15,9 +15,9 @@ import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 import org.jetbrains.kotlin.psi.psiUtil.parents
 
 private const val MIN_REASON_LENGTH = 10
-private const val APPROVAL_NAME = "HeapySuppress"
+private const val APPROVAL_NAME = "AllowSuppress"
 private const val APPROVAL_PACKAGE = "io.heapy.detekt"
-private const val APPROVAL_IMPORT = "io.heapy.detekt.HeapySuppress"
+private const val APPROVAL_IMPORT = "io.heapy.detekt.AllowSuppress"
 
 private val SUPPRESS_NAMES = setOf("Suppress", "SuppressWarnings")
 
@@ -27,10 +27,10 @@ private const val SHORT_REASON =
 private const val FILE_LEVEL =
     "@file:Suppress hides a rule for a whole file and is not approvable."
 private const val UNIMPORTED =
-    "@$APPROVAL_NAME is not the Heapy one: import $APPROVAL_IMPORT."
+    "@$APPROVAL_NAME is not imported from $APPROVAL_PACKAGE: import $APPROVAL_IMPORT."
 
 /**
- * Reports a `@Suppress` that carries no [HeapySuppress] approval with a reason.
+ * Reports a `@Suppress` that carries no [AllowSuppress] approval with a reason.
  *
  * `ForbiddenSuppress` with `ignoreAnnotated` already makes the approval mandatory and
  * cannot itself be silenced. This rule adds the strictness that one lacks: the approval
@@ -40,7 +40,7 @@ class ForbiddenSuppress(
     config: Config,
 ) : Rule(
     config,
-    "A @Suppress needs @HeapySuppress with a reason on the same declaration.",
+    "A @Suppress needs @AllowSuppress with a reason on the same declaration.",
 ) {
     @Configuration("suppression strings allowed without an approval")
     private val allowedSuppressions: List<String> by config(emptyList<String>())

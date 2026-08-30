@@ -18,16 +18,13 @@ internal fun findings(
 
 class ForbiddenSuppressTest {
     @Test
-    fun bareSuppressIsReported() = assertEquals(
-        expected = 1,
-        actual = findings(
+    fun bareSuppressNamesTheRequiredApproval() = assertTrue(
+        findings(
             """
-            import io.heapy.detekt.HeapySuppress
-
             @Suppress("MagicNumber")
             fun f() = 42
             """.trimIndent(),
-        ).size,
+        ).single().contains("@AllowSuppress"),
     )
 
     @Test
@@ -35,9 +32,9 @@ class ForbiddenSuppressTest {
         expected = emptyList(),
         actual = findings(
             """
-            import io.heapy.detekt.HeapySuppress
+            import io.heapy.detekt.AllowSuppress
 
-            @HeapySuppress("$REASON")
+            @AllowSuppress("$REASON")
             @Suppress("MagicNumber")
             fun f() = 42
             """.trimIndent(),
@@ -48,9 +45,9 @@ class ForbiddenSuppressTest {
     fun shortReasonIsReported() = assertTrue(
         findings(
             """
-            import io.heapy.detekt.HeapySuppress
+            import io.heapy.detekt.AllowSuppress
 
-            @HeapySuppress("short")
+            @AllowSuppress("short")
             @Suppress("MagicNumber")
             fun f() = 42
             """.trimIndent(),
@@ -62,9 +59,9 @@ class ForbiddenSuppressTest {
         expected = 1,
         actual = findings(
             """
-            import io.heapy.detekt.HeapySuppress
+            import io.heapy.detekt.AllowSuppress
 
-            @HeapySuppress("$REASON")
+            @AllowSuppress("$REASON")
             class Holder {
                 @Suppress("MagicNumber")
                 fun f() = 42
@@ -78,9 +75,9 @@ class ForbiddenSuppressTest {
         expected = emptyList(),
         actual = findings(
             """
-            import io.heapy.detekt.HeapySuppress
+            import io.heapy.detekt.AllowSuppress
 
-            @[HeapySuppress("$REASON") Suppress("MagicNumber")]
+            @[AllowSuppress("$REASON") Suppress("MagicNumber")]
             fun f() = 42
             """.trimIndent(),
         ),
@@ -90,7 +87,7 @@ class ForbiddenSuppressTest {
     fun unimportedApprovalIsReported() = assertTrue(
         findings(
             """
-            @HeapySuppress("$REASON")
+            @AllowSuppress("$REASON")
             @Suppress("MagicNumber")
             fun f() = 42
             """.trimIndent(),

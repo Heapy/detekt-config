@@ -7,7 +7,7 @@ set -euo pipefail
 REPO="${DETEKT_CONFIG_REPO:-Heapy/detekt-config}"
 REF="${DETEKT_CONFIG_REF:-main}"
 DETEKT_VERSION="2.0.0-alpha.6"
-THE_CONFIG_VERSION="0.1.0"
+THE_CONFIG_VERSION="0.2.0"
 
 TARGET="${1:-$PWD}"
 if [ ! -d "$TARGET" ]; then
@@ -138,7 +138,7 @@ and to every module.yaml that needs the check:
 
 Then run: ./kotlin check detekt
 
-To write @HeapySuppress in a module, add to its module.yaml:
+To write @AllowSuppress in a module, add to its module.yaml:
 
   dependencies:
     - io.heapy.detekt:the-config:$THE_CONFIG_VERSION: compile-only
@@ -163,7 +163,7 @@ Gradle, add to build.gradle.kts:
       detektPlugins("dev.detekt:detekt-rules-ktlint-wrapper:$DETEKT_VERSION")
       detektPlugins("io.heapy.detekt:the-config:$THE_CONFIG_VERSION")
       detektConfig("io.heapy.detekt:the-config:$THE_CONFIG_VERSION")
-      // Only if production code uses @HeapySuppress:
+      // Only if production code uses @AllowSuppress:
       compileOnly("io.heapy.detekt:the-config:$THE_CONFIG_VERSION")
   }
 

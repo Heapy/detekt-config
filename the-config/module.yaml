@@ -1,7 +1,7 @@
 product: jvm/lib
 
 # Maven Central requires a POM description, and the toolchain takes it from here.
-description: Heapy detekt rules, the @HeapySuppress annotation and the shared configuration
+description: Heapy detekt rules, the @AllowSuppress annotation and the shared configuration
 
 dependencies:
   # compile-only keeps detekt-api out of the consumer runtime. detekt supplies it.
@@ -32,7 +32,7 @@ settings:
     enabled: true
     group: io.heapy.detekt
     artifactId: the-config
-    version: 0.1.0
+    version: 0.2.0
     publishSources: true
     pom:
       url: https://github.com/Heapy/detekt-config
