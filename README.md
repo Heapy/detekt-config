@@ -34,7 +34,7 @@ Supported integrations and requirements:
 
 - Gradle with detekt's Gradle plugin. The published artifact targets JVM 17, so use
   JDK 17 or newer; the CI example below uses JDK 21.
-- Kotlin Toolchain 0.12.x. The checked-in wrappers pin 0.12.1 and provision the
+- Kotlin Toolchain 0.12.x. The checked-in wrappers pin 0.12.2 and provision the
   toolchain on first use.
 - Bash, Git, `curl` and `tar` to run the installer.
 
@@ -108,7 +108,7 @@ dependencies:
 ```
 
 The plugin targets toolchain **0.12.x**. The `kotlin` / `kotlin.bat` wrappers in this
-repository pin 0.12.1. The wrapper carries a checksum of the distribution, so upgrade
+repository pin 0.12.2. The wrapper carries a checksum of the distribution, so upgrade
 it with `./kotlin update` — never by editing the version by hand.
 
 ### What the plugin sees
