@@ -1,0 +1,5 @@
+schemaVersion: 1
+plugins:
+  detekt:
+    module: plugins/heapy-detekt
+    licenseFiles: [LICENSE]
